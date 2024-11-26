@@ -67,6 +67,8 @@ LANGUAGE = {
         "resale_price_currency_label": "Devise du prix de revente",
         "resale_price_currency_options": ("DZD", "EUR"),
         "benefit_label": "Bénéfice potentiel",
+        "desired_profit_label": "Bénéfice minimum souhaité",
+        "minimum_resale_price_label": "Prix minimum de revente nécessaire",
         "price_type_ht": "Hors Taxe (HT)",
         "price_type_ttc": "Toutes Taxes Comprises (TTC)",
         "tax_rate": "19%"  # TVA par défaut
@@ -125,6 +127,8 @@ LANGUAGE = {
         "resale_price_currency_label": "عملة سعر إعادة البيع",
         "resale_price_currency_options": ("دينار جزائري", "يورو"),
         "benefit_label": "الفائدة المحتملة",
+        "desired_profit_label": "الربح الأدنى المطلوب",
+        "minimum_resale_price_label": "سعر إعادة البيع الأدنى المطلوب",
         "price_type_ht": "قبل الضريبة (HT)",
         "price_type_ttc": "شامل الضريبة (TTC)",
         "tax_rate": "19%"  # TVA par défaut
@@ -553,6 +557,28 @@ with tabs[2]:
     else:
         st.warning(f"{texts['benefit_label']}: {benefit_dzd:,.2f} DZD / {benefit_eur:,.2f} EUR")
 
+    # **NOUVELLE FONCTIONNALITÉ : Estimation du Prix Minimum de Revente**
+    st.subheader(texts["minimum_resale_price_label"])
+    # Champ pour que l'utilisateur saisisse le bénéfice minimum souhaité
+    desired_profit_dzd = st.number_input(
+        texts["desired_profit_label"] + " (DZD)",
+        min_value=0.0,
+        value=0.0,
+        step=10000.0,
+        key="desired_profit_dzd"
+    )
+
+    # Calcul du prix minimum de revente nécessaire
+    minimum_resale_price_dzd = total_dzd + desired_profit_dzd
+    minimum_resale_price_eur = minimum_resale_price_dzd / conversion_rate if conversion_rate != 0 else 0
+
+    # Affichage du prix minimum de revente
+    st.markdown(f"**{texts['minimum_resale_price_label']} :** {minimum_resale_price_dzd:,.2f} DZD / {minimum_resale_price_eur:,.2f} EUR")
+
+    # Avertir l'utilisateur si le prix de revente saisi est inférieur au prix minimum requis
+    if resale_price_dzd < minimum_resale_price_dzd:
+        st.warning("Le prix de revente saisi est inférieur au prix minimum requis pour atteindre le bénéfice souhaité.")
+
 # **Onglet 4 : Résumé & Rapport**
 with tabs[3]:
     st.subheader(texts["summary_header"])
@@ -567,7 +593,8 @@ with tabs[3]:
             "Frais Annexes" if language == "French" else "الرسوم الإضافية",
             f"Total Estimé" if language == "French" else "الإجمالي المقدر",
             f"Prix de Revente",
-            f"Bénéfice Potentiel" if language == "French" else "الفائدة المحتملة"
+            f"Bénéfice Potentiel" if language == "French" else "الفائدة المحتملة",
+            texts["minimum_resale_price_label"]
         ],
         "En DZD": [
             f"{price_ttc:,.2f}",
@@ -577,7 +604,8 @@ with tabs[3]:
             f"{frais_annexes:,.2f}",
             f"{total_dzd:,.2f}",
             f"{resale_price_dzd:,.2f}",
-            f"{benefit_dzd:,.2f}"
+            f"{benefit_dzd:,.2f}",
+            f"{minimum_resale_price_dzd:,.2f}"
         ],
         "En EUR": [
             f"{price_ttc / conversion_rate:,.2f}",
@@ -587,7 +615,8 @@ with tabs[3]:
             f"{frais_annexes_eur:,.2f}",
             f"{total_eur:,.2f}",
             f"{resale_price_eur:,.2f}",
-            f"{benefit_eur:,.2f}"
+            f"{benefit_eur:,.2f}",
+            f"{minimum_resale_price_eur:,.2f}"
         ]
     }
 
@@ -673,6 +702,7 @@ with tabs[3]:
                 benefit_info = f"""
                 **Prix de Revente :** {resale_price_dzd:,.2f} DZD / {resale_price_eur:,.2f} EUR
                 **Bénéfice Potentiel :** {benefit_dzd:,.2f} DZD / {benefit_eur:,.2f} EUR
+                **{texts['minimum_resale_price_label']} :** {minimum_resale_price_dzd:,.2f} DZD / {minimum_resale_price_eur:,.2f} EUR
                 """
                 pdf.chapter_body(benefit_info)
 
