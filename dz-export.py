@@ -21,6 +21,8 @@ LANGUAGE = {
         "status_options": ("Particulier Résident", "Particulier Non-Résident (Binational)"),
         "conversion_subheader": "Taux de Conversion",
         "conversion_label": "Taux de conversion DZD par EUR",
+        "vat_subheader": "Taux de TVA",
+        "vat_label": "Taux de TVA (%)",
         "vehicle_info_header": "Informations sur le Véhicule",
         "manufacture_date_label": "Date de fabrication du véhicule",
         "fuel_label": "Type de carburant",
@@ -67,7 +69,7 @@ LANGUAGE = {
         "benefit_label": "Bénéfice potentiel",
         "price_type_ht": "Hors Taxe (HT)",
         "price_type_ttc": "Toutes Taxes Comprises (TTC)",
-        "tax_rate": "19%"  # TVA
+        "tax_rate": "19%"  # TVA par défaut
     },
     "Arabic": {
         "title": "محاكي استيراد المركبات إلى الجزائر",
@@ -77,6 +79,8 @@ LANGUAGE = {
         "status_options": ("مقيم خاص", "مقيم غير مقيم (ثنائي الجنسية)"),
         "conversion_subheader": "سعر الصرف",
         "conversion_label": "سعر الصرف DZD مقابل EUR",
+        "vat_subheader": "معدل ضريبة القيمة المضافة",
+        "vat_label": "معدل ضريبة القيمة المضافة (%)",
         "vehicle_info_header": "معلومات عن المركبة",
         "manufacture_date_label": "تاريخ تصنيع المركبة",
         "fuel_label": "نوع الوقود",
@@ -123,7 +127,7 @@ LANGUAGE = {
         "benefit_label": "الفائدة المحتملة",
         "price_type_ht": "قبل الضريبة (HT)",
         "price_type_ttc": "شامل الضريبة (TTC)",
-        "tax_rate": "19%"  # TVA
+        "tax_rate": "19%"  # TVA par défaut
     }
 }
 
@@ -225,7 +229,17 @@ conversion_rate = st.sidebar.number_input(
     step=1.0
 )
 
-# 3. Informations sur le Véhicule
+# 3. Taux de TVA (Modifiable)
+st.sidebar.subheader(texts["vat_subheader"])
+vat_rate = st.sidebar.number_input(
+    texts["vat_label"],
+    min_value=0.0,
+    max_value=100.0,
+    value=19.0,
+    step=0.1
+)
+
+# 4. Informations sur le Véhicule
 st.header(texts["vehicle_info_header"])
 
 # Sélection de l'année et du mois de fabrication avec noms de mois
@@ -263,7 +277,7 @@ def calculate_age(year, month):
 
 age = calculate_age(manufacture_year, manufacture_month)
 
-# 4. Sélection de la Marque et du Modèle du Véhicule
+# 5. Sélection de la Marque et du Modèle du Véhicule
 st.subheader(texts["vehicle_info_header"])
 
 # Récupérer les marques préenregistrées
@@ -286,7 +300,7 @@ else:
 
 # Vérifier si une marque et un modèle sont sélectionnés avant de procéder aux calculs
 if selected_make and selected_model_name:
-    # 5. Prix du Véhicule avec sélection de la devise et HT/TTC
+    # 6. Prix du Véhicule avec sélection de la devise et HT/TTC
     st.subheader(texts["price_input_label"])
 
     col_currency, col_price, col_price_type = st.columns([1, 2, 1])
@@ -324,7 +338,7 @@ if selected_make and selected_model_name:
         )
 
     # Calcul des prix HT et TTC
-    TVA_TAUX = 19  # Taux de TVA
+    TVA_TAUX = vat_rate  # Utilisation du taux de TVA modifiable
 
     if language == "French":
         if price_type == "HT":
@@ -345,12 +359,12 @@ if selected_make and selected_model_name:
             price_ht = price / (1 + TVA_TAUX / 100)
             st.write(f"**السعر قبل الضريبة (HT) :** {price_ht:,.2f} دينار جزائري")
 
-    # 6. Autres Informations sur le Véhicule
+    # 7. Autres Informations sur le Véhicule
     carburant = st.selectbox(texts["fuel_label"], texts["fuel_options"])
     cylindree = st.number_input(texts["cylindree_label"], min_value=0, max_value=10000, value=1800, step=100)
     etat = st.selectbox(texts["etat_label"], texts["etat_options"])
 
-    # 7. Calcul des Taxes et Coûts
+    # 8. Calcul des Taxes et Coûts
     st.header(texts["costs_header"])
 
     # Fonction pour vérifier l'éligibilité
@@ -457,7 +471,7 @@ if selected_make and selected_model_name:
     # Conversion des frais annexes en EUR
     frais_annexes_eur = frais_annexes / conversion_rate if conversion_rate != 0 else 0
 
-    # 8. Option pour Saisir le Prix de Revente et Calculer le Bénéfice
+    # 9. Option pour Saisir le Prix de Revente et Calculer le Bénéfice
     st.header("Calcul du Bénéfice de Revente" if language == "French" else "حساب الفائدة من إعادة البيع")
 
     resale_price_currency = st.selectbox(
@@ -494,7 +508,7 @@ if selected_make and selected_model_name:
     else:
         st.warning(f"{texts['benefit_label']}: {benefit_dzd:,.2f} DZD / {benefit_eur:,.2f} EUR")
 
-    # 9. Affichage des Résultats et Génération du Rapport PDF
+    # 10. Affichage des Résultats et Génération du Rapport PDF
     st.subheader(texts["summary_header"])
 
     col1, col2 = st.columns(2)
@@ -523,15 +537,15 @@ if selected_make and selected_model_name:
         st.write(f"**Frais Annexes:** {frais_annexes_eur:,.2f} EUR")
         st.write(f"**Total Estimé:** {total_eur:,.2f} EUR")
 
-    # 10. Documents Requis
+    # 11. Documents Requis
     st.header(texts["document_header"])
     st.markdown(texts["document_list"])
 
-    # 11. Restrictions Supplémentaires
+    # 12. Restrictions Supplémentaires
     st.header(texts["restrictions_header"])
     st.markdown(texts["restrictions_list"])
 
-    # 12. Téléchargement du Rapport en PDF
+    # 13. Téléchargement du Rapport en PDF
     st.header(texts["download_header"])
 
     if FPDF_AVAILABLE:
