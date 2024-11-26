@@ -110,14 +110,18 @@ def get_text(lang, key):
 @st.cache_data
 def get_makes():
     """Récupère la liste des marques de véhicules depuis CarQuery API."""
-    url = "https://www.carqueryapi.com/api/0.3/?cmd=getMakes"
+    url = "https://www.carqueryapi.com/api/0.3/?cmd=getMakes&callback="
     response = requests.get(url)
     if response.status_code == 200:
-        data = response.json()
-        makes = data['Makes']
-        # Trier les marques par ordre alphabétique
-        makes_sorted = sorted(makes, key=lambda x: x['make_display'])
-        return makes_sorted
+        try:
+            data = response.json()
+            makes = data['Makes']
+            # Trier les marques par ordre alphabétique
+            makes_sorted = sorted(makes, key=lambda x: x['make_display'])
+            return makes_sorted
+        except ValueError:
+            st.error("Erreur lors du décodage de la réponse JSON.")
+            return []
     else:
         st.error("Erreur lors de la récupération des marques.")
         return []
@@ -125,14 +129,18 @@ def get_makes():
 @st.cache_data
 def get_models(make_slug):
     """Récupère la liste des modèles pour une marque donnée depuis CarQuery API."""
-    url = f"https://www.carqueryapi.com/api/0.3/?cmd=getModels&make={make_slug}"
+    url = f"https://www.carqueryapi.com/api/0.3/?cmd=getModels&make={make_slug}&callback="
     response = requests.get(url)
     if response.status_code == 200:
-        data = response.json()
-        models = data['Models']
-        # Trier les modèles par ordre alphabétique
-        models_sorted = sorted(models, key=lambda x: x['model_display'])
-        return models_sorted
+        try:
+            data = response.json()
+            models = data['Models']
+            # Trier les modèles par ordre alphabétique
+            models_sorted = sorted(models, key=lambda x: x['model_display'])
+            return models_sorted
+        except ValueError:
+            st.error("Erreur lors du décodage de la réponse JSON.")
+            return []
     else:
         st.error("Erreur lors de la récupération des modèles.")
         return []
