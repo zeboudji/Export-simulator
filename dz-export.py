@@ -31,6 +31,8 @@ LANGUAGE = {
         "price_input_label": "Prix du véhicule",
         "price_currency_label": "Devise du prix",
         "price_currency_options": ("DZD", "EUR"),
+        "price_type_label": "Type de prix",
+        "price_type_options": ("HT", "TTC"),
         "costs_header": "Estimation des Coûts et Taxes",
         "eligibility_success": "Le véhicule est éligible à l'importation.",
         "eligibility_error": "Le véhicule n'est pas éligible à l'importation pour les raisons suivantes :",
@@ -60,8 +62,8 @@ LANGUAGE = {
         "select_model_label": "Sélectionnez le modèle",
         "loading_models": "Chargement des modèles...",
         "resale_price_label": "Prix de revente souhaité en Algérie",
-        "resale_price_type": "Type de prix de revente",
-        "resale_price_options": ("HT", "TTC"),
+        "resale_price_currency_label": "Devise du prix de revente",
+        "resale_price_currency_options": ("DZD", "EUR"),
         "benefit_label": "Bénéfice potentiel",
         "price_type_ht": "Hors Taxe (HT)",
         "price_type_ttc": "Toutes Taxes Comprises (TTC)",
@@ -85,6 +87,8 @@ LANGUAGE = {
         "price_input_label": "سعر المركبة",
         "price_currency_label": "عملة السعر",
         "price_currency_options": ("دينار جزائري", "يورو"),
+        "price_type_label": "نوع السعر",
+        "price_type_options": ("HT", "TTC"),
         "costs_header": "تقدير التكاليف والضرائب",
         "eligibility_success": "المركبة مؤهلة للاستيراد.",
         "eligibility_error": "المركبة غير مؤهلة للاستيراد للأسباب التالية :",
@@ -114,8 +118,8 @@ LANGUAGE = {
         "select_model_label": "اختر الطراز",
         "loading_models": "جارٍ تحميل الطرازات...",
         "resale_price_label": "سعر إعادة البيع المطلوب في الجزائر",
-        "resale_price_type": "نوع سعر إعادة البيع",
-        "resale_price_options": ("HT", "TTC"),
+        "resale_price_currency_label": "عملة سعر إعادة البيع",
+        "resale_price_currency_options": ("دينار جزائري", "يورو"),
         "benefit_label": "الفائدة المحتملة",
         "price_type_ht": "قبل الضريبة (HT)",
         "price_type_ttc": "شامل الضريبة (TTC)",
@@ -282,10 +286,10 @@ else:
 
 # Vérifier si une marque et un modèle sont sélectionnés avant de procéder aux calculs
 if selected_make and selected_model_name:
-    # 5. Prix du Véhicule avec sélection de la devise
+    # 5. Prix du Véhicule avec sélection de la devise et HT/TTC
     st.subheader(texts["price_input_label"])
 
-    col_currency, col_price = st.columns([1, 2])
+    col_currency, col_price, col_price_type = st.columns([1, 2, 1])
 
     with col_currency:
         price_currency = st.selectbox(
@@ -295,19 +299,51 @@ if selected_make and selected_model_name:
 
     with col_price:
         if language == "French":
+            price_input_label = "Prix du véhicule"
             if price_currency == "DZD":
-                prix_vehicule_dzd = st.number_input("Prix du véhicule (en DZD)", min_value=0, value=1000000, step=10000)
-                prix_vehicule_eur = prix_vehicule_dzd / conversion_rate if conversion_rate != 0 else 0
+                price = st.number_input("Prix du véhicule (en DZD)", min_value=0, value=1000000, step=10000)
+                price_eur = price / conversion_rate if conversion_rate != 0 else 0
             else:
-                prix_vehicule_eur = st.number_input("Prix du véhicule (en EUR)", min_value=0.0, value=1000.0, step=100.0)
-                prix_vehicule_dzd = prix_vehicule_eur * conversion_rate
+                price = st.number_input("Prix du véhicule (en EUR)", min_value=0.0, value=1000.0, step=100.0)
+                price_eur = price
+                price = price_eur * conversion_rate
         else:
+            price_input_label = "سعر المركبة"
             if price_currency == "دينار جزائري":
-                prix_vehicule_dzd = st.number_input("سعر المركبة (بالدينار الجزائري)", min_value=0, value=1000000, step=10000)
-                prix_vehicule_eur = prix_vehicule_dzd / conversion_rate if conversion_rate != 0 else 0
+                price = st.number_input("سعر المركبة (بالدينار الجزائري)", min_value=0, value=1000000, step=10000)
+                price_eur = price / conversion_rate if conversion_rate != 0 else 0
             else:
-                prix_vehicule_eur = st.number_input("سعر المركبة (باليورو)", min_value=0.0, value=1000.0, step=100.0)
-                prix_vehicule_dzd = prix_vehicule_eur * conversion_rate
+                price = st.number_input("سعر المركبة (باليورو)", min_value=0.0, value=1000.0, step=100.0)
+                price_eur = price
+                price = price_eur * conversion_rate
+
+    with col_price_type:
+        price_type = st.selectbox(
+            texts["price_type_label"],
+            texts["price_type_options"]
+        )
+
+    # Calcul des prix HT et TTC
+    TVA_TAUX = 19  # Taux de TVA
+
+    if language == "French":
+        if price_type == "HT":
+            price_ttc = price * (1 + TVA_TAUX / 100)
+            price_ht = price
+            st.write(f"**Prix TTC :** {price_ttc:,.2f} DZD")
+        else:
+            price_ttc = price
+            price_ht = price / (1 + TVA_TAUX / 100)
+            st.write(f"**Prix HT :** {price_ht:,.2f} DZD")
+    else:
+        if price_type == "HT":
+            price_ttc = price * (1 + TVA_TAUX / 100)
+            price_ht = price
+            st.write(f"**السعر شامل الضريبة (TTC) :** {price_ttc:,.2f} دينار جزائري")
+        else:
+            price_ttc = price
+            price_ht = price / (1 + TVA_TAUX / 100)
+            st.write(f"**السعر قبل الضريبة (HT) :** {price_ht:,.2f} دينار جزائري")
 
     # 6. Autres Informations sur le Véhicule
     carburant = st.selectbox(texts["fuel_label"], texts["fuel_options"])
@@ -390,9 +426,6 @@ if selected_make and selected_model_name:
 
     droits_douane_taux = calcul_droits_douane(carburant, cylindree, language)
 
-    # Calcul de la TVA
-    TVA_TAUX = 19
-
     # Calcul de la TIC
     def calcul_TIC(carburant, cylindree, lang):
         if carburant == LANGUAGE[lang]["fuel_options"][1] and 2000 < cylindree <= 3000:  # Diesel / ديزل
@@ -406,19 +439,19 @@ if selected_make and selected_model_name:
     frais_annexes = 50000  # Exemple fixe en DZD, à ajuster selon les besoins
 
     # Calcul des droits de douane
-    droits_douane = (droits_douane_taux / 100) * prix_vehicule_dzd
+    droits_douane = (droits_douane_taux / 100) * price_ttc
     droits_douane_eur = droits_douane / conversion_rate if conversion_rate != 0 else 0
 
-    # Calcul de la TVA
-    TVA = (TVA_TAUX / 100) * (prix_vehicule_dzd + droits_douane)
+    # Calcul de la TVA sur (Prix TTC + Droits de Douane)
+    TVA = (TVA_TAUX / 100) * (price_ttc + droits_douane)
     TVA_eur = TVA / conversion_rate if conversion_rate != 0 else 0
 
     # Calcul de la TIC
-    TIC = (TIC_TAUX / 100) * prix_vehicule_dzd
+    TIC = (TIC_TAUX / 100) * price_ttc
     TIC_eur = TIC / conversion_rate if conversion_rate != 0 else 0
 
     # Calcul total
-    total_dzd = prix_vehicule_dzd + droits_douane + TVA + TIC + frais_annexes
+    total_dzd = price_ttc + droits_douane + TVA + TIC + frais_annexes
     total_eur = total_dzd / conversion_rate if conversion_rate != 0 else 0
 
     # Conversion des frais annexes en EUR
@@ -427,24 +460,33 @@ if selected_make and selected_model_name:
     # 8. Option pour Saisir le Prix de Revente et Calculer le Bénéfice
     st.header("Calcul du Bénéfice de Revente" if language == "French" else "حساب الفائدة من إعادة البيع")
 
-    resale_price = st.number_input(
-        texts["resale_price_label"],
-        min_value=0.0,
-        value=1500000.0,
-        step=10000.0
+    resale_price_currency = st.selectbox(
+        texts["resale_price_currency_label"],
+        texts["resale_price_currency_options"]
     )
 
-    resale_price_type = st.radio(
-        texts["resale_price_type"],
-        texts["resale_price_options"]
-    )
+    with st.container():
+        if language == "French":
+            if resale_price_currency == "EUR":
+                resale_price_eur = st.number_input("Prix de revente (en EUR)", min_value=0.0, value=1000.0, step=100.0)
+                resale_price_dzd = resale_price_eur * conversion_rate
+                st.write(f"**Prix de revente en DZD :** {resale_price_dzd:,.2f} DZD")
+            else:
+                resale_price_dzd = st.number_input("Prix de revente (en DZD)", min_value=0.0, value=1500000.0, step=10000.0)
+                resale_price_eur = resale_price_dzd / conversion_rate if conversion_rate != 0 else 0
+                st.write(f"**Prix de revente en EUR :** {resale_price_eur:,.2f} EUR")
+        else:
+            if resale_price_currency == "يورو":
+                resale_price_eur = st.number_input("سعر إعادة البيع (باليورو)", min_value=0.0, value=1000.0, step=100.0)
+                resale_price_dzd = resale_price_eur * conversion_rate
+                st.write(f"**سعر إعادة البيع بالدينار الجزائري :** {resale_price_dzd:,.2f} دينار جزائري")
+            else:
+                resale_price_dzd = st.number_input("سعر إعادة البيع (بالدينار الجزائري)", min_value=0.0, value=1500000.0, step=10000.0)
+                resale_price_eur = resale_price_dzd / conversion_rate if conversion_rate != 0 else 0
+                st.write(f"**سعر إعادة البيع باليورو :** {resale_price_eur:,.2f} يورو")
 
-    if resale_price_type == "HT" or resale_price_type == "قبل الضريبة (HT)":
-        resale_price_ttc = resale_price * (1 + TVA_TAUX / 100)
-    else:
-        resale_price_ttc = resale_price
-
-    benefit = resale_price_ttc - total_dzd
+    # Calcul du bénéfice
+    benefit = resale_price_dzd - total_dzd
 
     if benefit >= 0:
         st.success(f"{texts['benefit_label']}: {benefit:,.2f} DZD")
@@ -461,6 +503,7 @@ if selected_make and selected_model_name:
             st.markdown("**En DZD:**")
         else:
             st.markdown("**بالدينار الجزائري:**")
+        st.write(f"**Prix TTC :** {price_ttc:,.2f} DZD" if language == "French" else f"**السعر شامل الضريبة (TTC) :** {price_ttc:,.2f} دينار جزائري")
         st.write(f"**Droits de Douane ({droits_douane_taux}%):** {droits_douane:,.2f} DZD")
         st.write(f"**TVA ({TVA_TAUX}%):** {TVA:,.2f} DZD")
         st.write(f"**TIC ({TIC_TAUX}%):** {TIC:,.2f} DZD")
@@ -472,6 +515,7 @@ if selected_make and selected_model_name:
             st.markdown("**En EUR:**")
         else:
             st.markdown("**باليورو:**")
+        st.write(f"**Prix TTC :** {price_ttc / conversion_rate:,.2f} EUR" if language == "French" else f"**السعر شامل الضريبة (TTC) :** {price_ttc / conversion_rate:,.2f} يورو")
         st.write(f"**Droits de Douane ({droits_douane_taux}%):** {droits_douane_eur:,.2f} EUR")
         st.write(f"**TVA ({TVA_TAUX}%):** {TVA_eur:,.2f} EUR")
         st.write(f"**TIC ({TIC_TAUX}%):** {TIC_eur:,.2f} EUR")
@@ -514,7 +558,7 @@ if selected_make and selected_model_name:
 
             **État de Conformité :** {etat}
 
-            **Prix du Véhicule :** {prix_vehicule_dzd:,.2f} DZD / {prix_vehicule_eur:,.2f} EUR
+            **Prix du Véhicule :** {price:,.2f} DZD / {price_eur:,.2f} EUR
             """
             pdf.chapter_body(general_info)
 
@@ -522,13 +566,15 @@ if selected_make and selected_model_name:
             pdf.chapter_title(texts["costs_header"])
             costs_data = {
                 "Description": [
-                    f"Droits de Douane ({droits_douane_taux}%)",
-                    f"TVA ({TVA_TAUX}%)",
-                    f"TIC ({TIC_TAUX}%)",
-                    "Frais Annexes",
-                    "Total Estimé"
+                    f"Prix TTC" if language == "French" else "السعر شامل الضريبة (TTC)",
+                    f"Droits de Douane ({droits_douane_taux}%)" if language == "French" else f"حقوق الجمارك ({droits_douane_taux}%)",
+                    f"TVA ({TVA_TAUX}%)" if language == "French" else f"ضريبة القيمة المضافة ({TVA_TAUX}%)",
+                    f"TIC ({TIC_TAUX}%)" if language == "French" else f"ضريبة أخرى ({TIC_TAUX}%)",
+                    "Frais Annexes" if language == "French" else "الرسوم الإضافية",
+                    f"Total Estimé" if language == "French" else "الإجمالي المقدر"
                 ],
                 "En DZD": [
+                    f"{price_ttc:,.2f}",
                     f"{droits_douane:,.2f}",
                     f"{TVA:,.2f}",
                     f"{TIC:,.2f}",
@@ -536,6 +582,7 @@ if selected_make and selected_model_name:
                     f"{total_dzd:,.2f}"
                 ],
                 "En EUR": [
+                    f"{price_ttc / conversion_rate:,.2f}" if language == "French" else f"{price_ttc / conversion_rate:,.2f}",
                     f"{droits_douane_eur:,.2f}",
                     f"{TVA_eur:,.2f}",
                     f"{TIC_eur:,.2f}",
@@ -549,10 +596,7 @@ if selected_make and selected_model_name:
             # Ajouter un chapitre pour le bénéfice de revente
             pdf.chapter_title("Calcul du Bénéfice de Revente" if language == "French" else "حساب الفائدة من إعادة البيع")
             benefit_info = f"""
-            **Prix de Revente Souhaité :** {resale_price:,.2f} {"HT" if resale_price_type == "HT" else "TTC"}
-
-            **Prix de Revente TTC :** {resale_price_ttc:,.2f} DZD
-
+            **Prix de Revente :** {resale_price_dzd:,.2f} DZD / {resale_price_eur:,.2f} EUR
             **Bénéfice Potentiel :** {benefit:,.2f} DZD
             """
             pdf.chapter_body(benefit_info)
