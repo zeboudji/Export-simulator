@@ -2,7 +2,14 @@ import streamlit as st
 import pandas as pd
 from io import BytesIO
 from datetime import datetime
-from fpdf import FPDF
+
+# Tentative d'importation de FPDF avec gestion des erreurs
+try:
+    from fpdf import FPDF
+    FPDF_AVAILABLE = True
+except ModuleNotFoundError:
+    FPDF_AVAILABLE = False
+    st.error("Le module 'fpdf' n'est pas installé. Veuillez l'installer pour pouvoir générer des rapports PDF.")
 
 # Dictionnaire des textes pour les différentes langues
 LANGUAGE = {
@@ -135,42 +142,49 @@ MAKES_MODELS = {
 }
 
 # Classe pour générer le PDF
-class PDF(FPDF):
-    def header(self):
-        # Titre
-        self.set_font('Arial', 'B', 16)
-        self.cell(0, 10, 'Rapport d\'Importation de Véhicule', ln=True, align='C')
-        self.ln(10)
+if FPDF_AVAILABLE:
+    class PDF(FPDF):
+        def header(self):
+            # Titre
+            self.set_font('Arial', 'B', 16)
+            self.cell(0, 10, 'Rapport d\'Importation de Véhicule', ln=True, align='C')
+            self.ln(10)
 
-    def chapter_title(self, label):
-        # Sous-titre
-        self.set_font('Arial', 'B', 12)
-        self.cell(0, 10, label, ln=True)
-        self.ln(5)
+        def chapter_title(self, label):
+            # Sous-titre
+            self.set_font('Arial', 'B', 12)
+            self.cell(0, 10, label, ln=True)
+            self.ln(5)
 
-    def chapter_body(self, body):
-        # Corps du texte
-        self.set_font('Arial', '', 12)
-        for line in body.split('\n'):
-            self.multi_cell(0, 10, line)
+        def chapter_body(self, body):
+            # Corps du texte
+            self.set_font('Arial', '', 12)
+            for line in body.split('\n'):
+                self.multi_cell(0, 10, line)
+                self.ln()
+
+        def add_table(self, df, title):
+            self.set_font('Arial', 'B', 12)
+            self.cell(0, 10, title, ln=True)
+            self.ln(2)
+            # Table
+            self.set_font('Arial', 'B', 10)
+            # Remplacement de self.epw par self.w - 2 * self.l_margin
+            col_width = (self.w - 2 * self.l_margin) / len(df.columns)  # distribute content evenly
+            for col in df.columns:
+                self.cell(col_width, 10, col, border=1, align='C')
             self.ln()
-
-    def add_table(self, df, title):
-        self.set_font('Arial', 'B', 12)
-        self.cell(0, 10, title, ln=True)
-        self.ln(2)
-        # Table
-        self.set_font('Arial', 'B', 10)
-        col_width = self.epw / len(df.columns)  # distribute content evenly
-        for col in df.columns:
-            self.cell(col_width, 10, col, border=1, align='C')
-        self.ln()
-        self.set_font('Arial', '', 10)
-        for index, row in df.iterrows():
-            for item in row:
-                self.cell(col_width, 10, f"{item}", border=1)
-            self.ln()
-        self.ln(10)
+            self.set_font('Arial', '', 10)
+            for index, row in df.iterrows():
+                for item in row:
+                    # Convertir les nombres en chaînes avec des séparateurs de milliers
+                    if isinstance(item, float) or isinstance(item, int):
+                        item_str = f"{item:,.2f}"
+                    else:
+                        item_str = str(item)
+                    self.cell(col_width, 10, item_str, border=1)
+                self.ln()
+            self.ln(10)
 
 # Sélection de la langue
 st.sidebar.header("Language / اللغة")
@@ -411,12 +425,12 @@ if selected_make and selected_model_name:
     frais_annexes_eur = frais_annexes / conversion_rate if conversion_rate != 0 else 0
 
     # 8. Option pour Saisir le Prix de Revente et Calculer le Bénéfice
-    st.header("Calcul du Bénéfice de Revente")
+    st.header("Calcul du Bénéfice de Revente" if language == "French" else "حساب الفائدة من إعادة البيع")
 
     resale_price = st.number_input(
         texts["resale_price_label"],
         min_value=0.0,
-        value=1500000.0 if language == "French" else 1500000.0,
+        value=1500000.0,
         step=10000.0
     )
 
@@ -475,84 +489,87 @@ if selected_make and selected_model_name:
     # 12. Téléchargement du Rapport en PDF
     st.header(texts["download_header"])
 
-    if st.button(texts["download_button"]):
-        # Création du rapport
-        pdf = PDF()
-        pdf.add_page()
+    if FPDF_AVAILABLE:
+        if st.button(texts["download_button"]):
+            # Création du rapport
+            pdf = PDF()
+            pdf.add_page()
 
-        # Ajouter un chapitre pour les informations générales
-        pdf.chapter_title("Informations Générales")
-        general_info = f"""
-        **Statut de l'Importateur :** {importer_status}
-        
-        **Taux de Conversion (DZD/EUR) :** {conversion_rate}
-        
-        **Marque :** {selected_make}
-        
-        **Modèle :** {selected_model_name}
-        
-        **Date de Fabrication :** {manufacture_year} - {manufacture_month_name}
-        
-        **Type de Carburant :** {carburant}
-        
-        **Cylindrée :** {cylindree} cm³
-        
-        **État de Conformité :** {etat}
-        
-        **Prix du Véhicule :** {prix_vehicule_dzd:,.2f} DZD / {prix_vehicule_eur:,.2f} EUR
-        """
-        pdf.chapter_body(general_info)
+            # Ajouter un chapitre pour les informations générales
+            pdf.chapter_title("Informations Générales" if language == "French" else "المعلومات العامة")
+            general_info = f"""
+            **Statut de l'Importateur :** {importer_status}
 
-        # Ajouter un chapitre pour les coûts et taxes
-        pdf.chapter_title(texts["costs_header"])
-        costs_data = {
-            "Description": [
-                f"Droits de Douane ({droits_douane_taux}%)",
-                f"TVA ({TVA_TAUX}%)",
-                f"TIC ({TIC_TAUX}%)",
-                "Frais Annexes",
-                "Total Estimé"
-            ],
-            "En DZD": [
-                f"{droits_douane:,.2f}",
-                f"{TVA:,.2f}",
-                f"{TIC:,.2f}",
-                f"{frais_annexes:,.2f}",
-                f"{total_dzd:,.2f}"
-            ],
-            "En EUR": [
-                f"{droits_douane_eur:,.2f}",
-                f"{TVA_eur:,.2f}",
-                f"{TIC_eur:,.2f}",
-                f"{frais_annexes_eur:,.2f}",
-                f"{total_eur:,.2f}"
-            ]
-        }
-        costs_df = pd.DataFrame(costs_data)
-        pdf.add_table(costs_df, "Coûts et Taxes")
+            **Taux de Conversion (DZD/EUR) :** {conversion_rate}
 
-        # Ajouter un chapitre pour le bénéfice de revente
-        pdf.chapter_title("Calcul du Bénéfice de Revente")
-        benefit_info = f"""
-        **Prix de Revente Souhaité :** {resale_price:,.2f} {"HT" if resale_price_type == "HT" or resale_price_type == "قبل الضريبة (HT)" else "TTC"}
-        
-        **Prix de Revente TTC :** {resale_price_ttc:,.2f} DZD
-        
-        **Bénéfice Potentiel :** {benefit:,.2f} DZD
-        """
-        pdf.chapter_body(benefit_info)
+            **Marque :** {selected_make}
 
-        # Générer le PDF en mémoire
-        pdf_output = BytesIO()
-        pdf.output(pdf_output)
-        pdf_data = pdf_output.getvalue()
+            **Modèle :** {selected_model_name}
 
-        # Bouton de téléchargement
-        st.download_button(
-            label=texts["download_button"],
-            data=pdf_data,
-            file_name=texts["report_filename"],
-            mime='application/pdf'
-        )
+            **Date de Fabrication :** {manufacture_year} - {manufacture_month_name}
+
+            **Type de Carburant :** {carburant}
+
+            **Cylindrée :** {cylindree} cm³
+
+            **État de Conformité :** {etat}
+
+            **Prix du Véhicule :** {prix_vehicule_dzd:,.2f} DZD / {prix_vehicule_eur:,.2f} EUR
+            """
+            pdf.chapter_body(general_info)
+
+            # Ajouter un chapitre pour les coûts et taxes
+            pdf.chapter_title(texts["costs_header"])
+            costs_data = {
+                "Description": [
+                    f"Droits de Douane ({droits_douane_taux}%)",
+                    f"TVA ({TVA_TAUX}%)",
+                    f"TIC ({TIC_TAUX}%)",
+                    "Frais Annexes",
+                    "Total Estimé"
+                ],
+                "En DZD": [
+                    f"{droits_douane:,.2f}",
+                    f"{TVA:,.2f}",
+                    f"{TIC:,.2f}",
+                    f"{frais_annexes:,.2f}",
+                    f"{total_dzd:,.2f}"
+                ],
+                "En EUR": [
+                    f"{droits_douane_eur:,.2f}",
+                    f"{TVA_eur:,.2f}",
+                    f"{TIC_eur:,.2f}",
+                    f"{frais_annexes_eur:,.2f}",
+                    f"{total_eur:,.2f}"
+                ]
+            }
+            costs_df = pd.DataFrame(costs_data)
+            pdf.add_table(costs_df, "Coûts et Taxes" if language == "French" else "التكاليف والضرائب")
+
+            # Ajouter un chapitre pour le bénéfice de revente
+            pdf.chapter_title("Calcul du Bénéfice de Revente" if language == "French" else "حساب الفائدة من إعادة البيع")
+            benefit_info = f"""
+            **Prix de Revente Souhaité :** {resale_price:,.2f} {"HT" if resale_price_type == "HT" else "TTC"}
+
+            **Prix de Revente TTC :** {resale_price_ttc:,.2f} DZD
+
+            **Bénéfice Potentiel :** {benefit:,.2f} DZD
+            """
+            pdf.chapter_body(benefit_info)
+
+            # Générer le PDF en mémoire
+            pdf_output = BytesIO()
+            pdf.output(pdf_output)
+            pdf_data = pdf_output.getvalue()
+
+            # Bouton de téléchargement
+            st.download_button(
+                label=texts["download_button"],
+                data=pdf_data,
+                file_name=texts["report_filename"],
+                mime='application/pdf'
+            )
+    else:
+        st.warning("La génération de rapports PDF nécessite l'installation du module 'fpdf'. Veuillez l'installer pour utiliser cette fonctionnalité.")
 else:
     st.info("Veuillez sélectionner une marque et un modèle de véhicule pour estimer les coûts.")
