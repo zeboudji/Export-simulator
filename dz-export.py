@@ -115,7 +115,10 @@ def get_makes():
         response = requests.get(url)
         if response.status_code == 200:
             data = response.json()
-            makes = data['Makes']
+            makes = data.get('Makes', [])
+            if not makes:
+                st.error("Aucune marque trouvée.")
+                return []
             # Trier les marques par ordre alphabétique
             makes_sorted = sorted(makes, key=lambda x: x['make_display'])
             return makes_sorted
@@ -123,7 +126,7 @@ def get_makes():
             st.error("Erreur lors de la récupération des marques.")
             return []
     except Exception as e:
-        st.error(f"Une erreur s'est produite : {e}")
+        st.error(f"Une erreur s'est produite lors de la récupération des marques : {e}")
         return []
 
 @st.cache_data(show_spinner=False)
@@ -134,7 +137,10 @@ def get_models(make_slug):
         response = requests.get(url)
         if response.status_code == 200:
             data = response.json()
-            models = data['Models']
+            models = data.get('Models', [])
+            if not models:
+                st.error("Aucun modèle trouvé pour cette marque.")
+                return []
             # Trier les modèles par ordre alphabétique
             models_sorted = sorted(models, key=lambda x: x['model_display'])
             return models_sorted
@@ -142,7 +148,7 @@ def get_models(make_slug):
             st.error("Erreur lors de la récupération des modèles.")
             return []
     except Exception as e:
-        st.error(f"Une erreur s'est produite : {e}")
+        st.error(f"Une erreur s'est produite lors de la récupération des modèles : {e}")
         return []
 
 # Sélection de la langue
@@ -219,7 +225,7 @@ def calculate_age(year, month):
 age = calculate_age(manufacture_year, manufacture_month)
 
 # 4. Sélection de la Marque et du Modèle du Véhicule
-st.subheader(get_text(language, "vehicle_info_header"))
+st.subheader(texts["vehicle_info_header"])
 
 # Récupérer les marques
 makes = get_makes()
@@ -228,7 +234,7 @@ if not makes:
 else:
     make_names = [make['make_display'] for make in makes]
     selected_make_name = st.selectbox(
-        get_text(language, "select_make_label"),
+        texts["select_make_label"],
         make_names
     )
 
@@ -243,7 +249,7 @@ else:
         if models:
             model_names = [model['model_display'] for model in models]
             selected_model_name = st.selectbox(
-                get_text(language, "select_model_label"),
+                texts["select_model_label"],
                 model_names
             )
         else:
@@ -251,7 +257,7 @@ else:
     else:
         selected_model_name = None
 
-# Check if model is selected before proceeding
+# Vérifier si une marque et un modèle sont sélectionnés avant de procéder aux calculs
 if selected_make and selected_model_name:
     # 5. Prix du Véhicule avec sélection de la devise
     st.subheader(texts["price_input_label"])
@@ -268,21 +274,21 @@ if selected_make and selected_model_name:
         if language == "French":
             if price_currency == "DZD":
                 prix_vehicule_dzd = st.number_input("Prix du véhicule (en DZD)", min_value=0, value=1000000, step=10000)
-                prix_vehicule_eur = prix_vehicule_dzd / conversion_rate
+                prix_vehicule_eur = prix_vehicule_dzd / conversion_rate if conversion_rate != 0 else 0
             else:
                 prix_vehicule_eur = st.number_input("Prix du véhicule (en EUR)", min_value=0.0, value=1000.0, step=100.0)
                 prix_vehicule_dzd = prix_vehicule_eur * conversion_rate
         else:
             if price_currency == "دينار جزائري":
                 prix_vehicule_dzd = st.number_input("سعر المركبة (بالدينار الجزائري)", min_value=0, value=1000000, step=10000)
-                prix_vehicule_eur = prix_vehicule_dzd / conversion_rate
+                prix_vehicule_eur = prix_vehicule_dzd / conversion_rate if conversion_rate != 0 else 0
             else:
                 prix_vehicule_eur = st.number_input("سعر المركبة (باليورو)", min_value=0.0, value=1000.0, step=100.0)
                 prix_vehicule_dzd = prix_vehicule_eur * conversion_rate
 
     # 6. Autres Informations sur le Véhicule
     carburant = st.selectbox(texts["fuel_label"], texts["fuel_options"])
-    cylindree = st.number_input(texts["cylindree_label"], min_value=0, max_value=5000, value=1800, step=100)
+    cylindree = st.number_input(texts["cylindree_label"], min_value=0, max_value=10000, value=1800, step=100)
     etat = st.selectbox(texts["etat_label"], texts["etat_options"])
 
     # 7. Calcul des Taxes et Coûts
@@ -378,22 +384,22 @@ if selected_make and selected_model_name:
 
     # Calcul des droits de douane
     droits_douane = (droits_douane_taux / 100) * prix_vehicule_dzd
-    droits_douane_eur = droits_douane / conversion_rate
+    droits_douane_eur = droits_douane / conversion_rate if conversion_rate != 0 else 0
 
     # Calcul de la TVA
     TVA = (TVA_TAUX / 100) * (prix_vehicule_dzd + droits_douane)
-    TVA_eur = TVA / conversion_rate
+    TVA_eur = TVA / conversion_rate if conversion_rate != 0 else 0
 
     # Calcul de la TIC
     TIC = (TIC_TAUX / 100) * prix_vehicule_dzd
-    TIC_eur = TIC / conversion_rate
+    TIC_eur = TIC / conversion_rate if conversion_rate != 0 else 0
 
     # Calcul total
     total_dzd = prix_vehicule_dzd + droits_douane + TVA + TIC + frais_annexes
-    total_eur = total_dzd / conversion_rate
+    total_eur = total_dzd / conversion_rate if conversion_rate != 0 else 0
 
     # Conversion des frais annexes en EUR
-    frais_annexes_eur = frais_annexes / conversion_rate
+    frais_annexes_eur = frais_annexes / conversion_rate if conversion_rate != 0 else 0
 
     # Affichage des résultats
     st.subheader(texts["summary_header"])
