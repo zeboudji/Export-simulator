@@ -142,6 +142,11 @@ if FPDF_AVAILABLE:
                 self.ln()
             self.ln(10)
 
+# Fonction pour formater les montants en DZD avec équivalence en millions
+def format_dzd(amount):
+    millions = amount / 10_000  # 1 million équivaut à 10 000 DZD
+    return f"{amount:,.2f} DZD ({int(millions)} millions)"
+
 # Sélection de la langue
 st.sidebar.header("Language / اللغة")
 language = st.sidebar.selectbox("Choose your language / اختر لغتك", ("French", "Arabic"))
@@ -190,13 +195,17 @@ with st.sidebar:
 
     # 4. Taux de Change pour le Marché Parallèle (Optionnel)
     st.sidebar.subheader("Taux de Change du Marché Parallèle (Optionnel)")
-    parallel_rate = st.sidebar.number_input(
-        "Entrez le taux de change du marché parallèle DZD par EUR",
-        min_value=1.0,
-        value=150.0,
-        step=1.0,
-        help="Utilisez ce taux si vous souhaitez calculer le bénéfice en utilisant le taux de change du marché parallèle."
-    )
+    use_parallel_rate = st.sidebar.checkbox("Utiliser le taux de change du marché parallèle")
+    if use_parallel_rate:
+        parallel_rate = st.sidebar.number_input(
+            "Entrez le taux de change du marché parallèle DZD par EUR",
+            min_value=1.0,
+            value=150.0,
+            step=1.0,
+            help="Utilisez ce taux si vous souhaitez calculer le bénéfice en utilisant le taux de change du marché parallèle."
+        )
+    else:
+        parallel_rate = conversion_rate  # Utiliser le taux officiel par défaut
 
 # Utilisation des onglets pour organiser le contenu principal
 tabs = st.tabs(["📄 Informations Véhicule", "💰 Coûts & Taxes", "📈 Revente & Bénéfice", "📋 Résumé & Rapport"])
@@ -269,11 +278,11 @@ with tabs[0]:
         with col_price:
             if language == "French":
                 if price_currency == "DZD":
-                    price = st.number_input("Prix du véhicule (en DZD)", min_value=0, value=15000000, step=10000, key="price_dzd")
+                    price = st.number_input("Prix du véhicule (en DZD)", min_value=0, value=15000000.00, step=10000.00, key="price_dzd")
                     price_eur = price / conversion_rate if conversion_rate != 0 else 0
-                    st.markdown("**Note :** 15 000 000 DZD équivalent à 1 000 EUR.")
+                    st.markdown("**Note :** 15 000 000 DZD équivaut à 1 000 EUR.")
                 else:
-                    price_eur = st.number_input("Prix du véhicule (en EUR)", min_value=0.0, value=10000.0, step=100.0, key="price_eur")
+                    price_eur = st.number_input("Prix du véhicule (en EUR)", min_value=0.0, value=1000.0, step=10.0, key="price_eur")
                     price = price_eur * conversion_rate
             else:
                 # Version arabe...
@@ -307,7 +316,7 @@ with tabs[0]:
 
     # Afficher le prix ajusté
     if language == "French":
-        st.markdown(f"**Prix HT sans TVA du pays d'origine :** {price_ht_origin:,.2f} DZD / {price_ht_origin / conversion_rate:,.2f} EUR")
+        st.markdown(f"**Prix HT sans TVA du pays d'origine :** {format_dzd(price_ht_origin)} / {price_ht_origin / conversion_rate:,.2f} EUR")
     else:
         # Version arabe...
         pass
@@ -447,13 +456,13 @@ with tabs[1]:
             "Total Estimé"
         ],
         "En DZD": [
-            f"{price_ht_origin:,.2f}",
-            f"{droits_douane:,.2f}",
-            f"{TIC:,.2f}",
-            f"{frais_annexes:,.2f}",
-            f"{montant_avant_TVA:,.2f}",
-            f"{TVA:,.2f}",
-            f"{total_dzd:,.2f}"
+            format_dzd(price_ht_origin),
+            format_dzd(droits_douane),
+            format_dzd(TIC),
+            format_dzd(frais_annexes),
+            format_dzd(montant_avant_TVA),
+            format_dzd(TVA),
+            format_dzd(total_dzd)
         ],
         "En EUR": [
             f"{price_ht_origin / conversion_rate:,.2f}",
@@ -502,20 +511,20 @@ with tabs[2]:
                 pass
 
     # Affichage des prix de revente avec traduction
-    st.markdown(f"**Prix de revente en DZD :** {resale_price_dzd:,.2f} DZD / {resale_price_eur:,.2f} EUR")
+    st.markdown(f"**Prix de revente en DZD :** {format_dzd(resale_price_dzd)} / {resale_price_eur:,.2f} EUR")
     st.markdown(
-        "<span title='En dialecte algérien, 15 000 000 DZD équivalent à 1 000 EUR.'>ℹ️</span>",
+        "<span title='En dialecte algérien, 15 000 000 DZD équivaut à 1 000 EUR.'>ℹ️</span> **Note :** 15 000 000 DZD équivaut à 1 000 EUR.",
         unsafe_allow_html=True
     )
 
     # Calcul du bénéfice
     benefit_dzd = resale_price_dzd - total_dzd
-    benefit_eur = benefit_dzd / conversion_rate if conversion_rate != 0 else 0
+    benefit_eur = benefit_dzd / parallel_rate if parallel_rate != 0 else 0
 
     if benefit_dzd >= 0:
-        st.success(f"{texts['benefit_label']}: {benefit_dzd:,.2f} DZD / {benefit_eur:,.2f} EUR")
+        st.success(f"{texts['benefit_label']}: {format_dzd(benefit_dzd)} / {benefit_eur:,.2f} EUR")
     else:
-        st.warning(f"{texts['benefit_label']}: {benefit_dzd:,.2f} DZD / {benefit_eur:,.2f} EUR")
+        st.warning(f"{texts['benefit_label']}: {format_dzd(benefit_dzd)} / {benefit_eur:,.2f} EUR")
 
     # **Nouvelle Fonctionnalité : Bénéfice Minimum Souhaité en DZD ou EUR**
     st.subheader(texts["desired_profit_label"])
@@ -538,7 +547,7 @@ with tabs[2]:
                     step=10000.0,
                     key="desired_profit_dzd"
                 )
-                desired_profit_eur = desired_profit_dzd / conversion_rate if conversion_rate != 0 else 0
+                desired_profit_eur = desired_profit_dzd / parallel_rate if parallel_rate != 0 else 0
             else:
                 desired_profit_eur = st.number_input(
                     texts["desired_profit_label"] + " (EUR)",
@@ -547,14 +556,14 @@ with tabs[2]:
                     step=100.0,
                     key="desired_profit_eur"
                 )
-                desired_profit_dzd = desired_profit_eur * (parallel_rate if parallel_rate else conversion_rate)
+                desired_profit_dzd = desired_profit_eur * parallel_rate
 
     # Calculer le prix minimum de revente nécessaire
     minimum_resale_price_dzd = total_dzd + desired_profit_dzd
-    minimum_resale_price_eur = minimum_resale_price_dzd / (parallel_rate if parallel_rate else conversion_rate) if (parallel_rate if parallel_rate else conversion_rate) != 0 else 0
+    minimum_resale_price_eur = minimum_resale_price_dzd / parallel_rate if parallel_rate != 0 else 0
 
     # Afficher le prix minimum de revente
-    st.markdown(f"**{texts['minimum_resale_price_label']} :** {minimum_resale_price_dzd:,.2f} DZD / {minimum_resale_price_eur:,.2f} EUR")
+    st.markdown(f"**{texts['minimum_resale_price_label']} :** {format_dzd(minimum_resale_price_dzd)} / {minimum_resale_price_eur:,.2f} EUR")
 
     # Avertir si le prix de revente est inférieur au minimum requis
     if resale_price_dzd < minimum_resale_price_dzd:
@@ -573,22 +582,22 @@ with tabs[3]:
             "Frais Annexes",
             f"Montant Avant TVA",
             f"TVA Algérienne ({TVA_TAUX}%)",
-            f"Total Estimé",
-            f"Prix de Revente",
-            f"Bénéfice Potentiel",
+            "Total Estimé",
+            "Prix de Revente",
+            "Bénéfice Potentiel",
             texts["minimum_resale_price_label"]
         ],
         "En DZD": [
-            f"{price_ht_origin:,.2f}",
-            f"{droits_douane:,.2f}",
-            f"{TIC:,.2f}",
-            f"{frais_annexes:,.2f}",
-            f"{montant_avant_TVA:,.2f}",
-            f"{TVA:,.2f}",
-            f"{total_dzd:,.2f}",
-            f"{resale_price_dzd:,.2f}",
-            f"{benefit_dzd:,.2f}",
-            f"{minimum_resale_price_dzd:,.2f}"
+            format_dzd(price_ht_origin),
+            format_dzd(droits_douane),
+            format_dzd(TIC),
+            format_dzd(frais_annexes),
+            format_dzd(montant_avant_TVA),
+            format_dzd(TVA),
+            format_dzd(total_dzd),
+            format_dzd(resale_price_dzd),
+            format_dzd(benefit_dzd),
+            format_dzd(minimum_resale_price_dzd)
         ],
         "En EUR": [
             f"{price_ht_origin / conversion_rate:,.2f}",
@@ -646,7 +655,7 @@ with tabs[3]:
 
 **État de Conformité :** {etat}
 
-**Prix du Véhicule :** {price:,.2f} DZD / {price_eur:,.2f} EUR
+**Prix du Véhicule :** {format_dzd(price)} / {price_eur:,.2f} EUR
 """
                 pdf.chapter_body(general_info)
 
@@ -663,11 +672,11 @@ with tabs[3]:
                 # Ajouter un chapitre pour le bénéfice de revente
                 pdf.chapter_title("Calcul du Bénéfice de Revente")
                 benefit_info = f"""
-**Prix de Revente :** {resale_price_dzd:,.2f} DZD / {resale_price_eur:,.2f} EUR
+**Prix de Revente :** {format_dzd(resale_price_dzd)} / {resale_price_eur:,.2f} EUR
 
-**Bénéfice Potentiel :** {benefit_dzd:,.2f} DZD / {benefit_eur:,.2f} EUR
+**Bénéfice Potentiel :** {format_dzd(benefit_dzd)} / {benefit_eur:,.2f} EUR
 
-**{texts['minimum_resale_price_label']} :** {minimum_resale_price_dzd:,.2f} DZD / {minimum_resale_price_eur:,.2f} EUR
+**{texts['minimum_resale_price_label']} :** {format_dzd(minimum_resale_price_dzd)} / {minimum_resale_price_eur:,.2f} EUR
 """
                 pdf.chapter_body(benefit_info)
 
