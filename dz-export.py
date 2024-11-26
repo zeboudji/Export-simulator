@@ -73,7 +73,7 @@ LANGUAGE = {
         "price_currency_options": ("دينار جزائري", "يورو"),
         "costs_header": "تقدير التكاليف والضرائب",
         "eligibility_success": "المركبة مؤهلة للاستيراد.",
-        "eligibility_error": "المركبة غير مؤهلة للاستيراد للأسباب التالية:",
+        "eligibility_error": "المركبة غير مؤهلة للاستيراد للأسباب التالية :",
         "summary_header": "ملخص التكاليف والضرائب",
         "document_header": "المستندات المطلوبة للتخليص الجمركي",
         "document_list": """
@@ -107,42 +107,42 @@ def get_text(lang, key):
     return LANGUAGE[lang][key]
 
 # Fonctions pour interagir avec l'API CarQuery
-@st.cache_data(ttl=3600)
+@st.cache_data(show_spinner=False)
 def get_makes():
     """Récupère la liste des marques de véhicules depuis CarQuery API."""
     url = "https://www.carqueryapi.com/api/0.3/?cmd=getMakes&callback="
-    response = requests.get(url)
-    if response.status_code == 200:
-        try:
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
             data = response.json()
             makes = data['Makes']
             # Trier les marques par ordre alphabétique
             makes_sorted = sorted(makes, key=lambda x: x['make_display'])
             return makes_sorted
-        except ValueError:
-            st.error("Erreur lors du décodage de la réponse JSON.")
+        else:
+            st.error("Erreur lors de la récupération des marques.")
             return []
-    else:
-        st.error("Erreur lors de la récupération des marques.")
+    except Exception as e:
+        st.error(f"Une erreur s'est produite : {e}")
         return []
 
-@st.cache_data(ttl=3600)
+@st.cache_data(show_spinner=False)
 def get_models(make_slug):
     """Récupère la liste des modèles pour une marque donnée depuis CarQuery API."""
-    url = f"https://www.carqueryapi.com/api/0.3/?cmd=getModels&make={make_slug}"
-    response = requests.get(url)
-    if response.status_code == 200:
-        try:
+    url = f"https://www.carqueryapi.com/api/0.3/?cmd=getModels&make={make_slug}&callback="
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
             data = response.json()
             models = data['Models']
             # Trier les modèles par ordre alphabétique
             models_sorted = sorted(models, key=lambda x: x['model_display'])
             return models_sorted
-        except ValueError:
-            st.error("Erreur lors du décodage de la réponse JSON.")
+        else:
+            st.error("Erreur lors de la récupération des modèles.")
             return []
-    else:
-        st.error("Erreur lors de la récupération des modèles.")
+    except Exception as e:
+        st.error(f"Une erreur s'est produite : {e}")
         return []
 
 # Sélection de la langue
@@ -219,17 +219,16 @@ def calculate_age(year, month):
 age = calculate_age(manufacture_year, manufacture_month)
 
 # 4. Sélection de la Marque et du Modèle du Véhicule
-st.subheader(texts["vehicle_info_header"])
+st.subheader(get_text(language, "vehicle_info_header"))
 
 # Récupérer les marques
 makes = get_makes()
-make_names = [make['make_display'] for make in makes]
-
-if not make_names:
-    st.error("Aucune marque disponible pour le moment. Veuillez réessayer plus tard.")
+if not makes:
+    st.warning("Aucune marque disponible.")
 else:
+    make_names = [make['make_display'] for make in makes]
     selected_make_name = st.selectbox(
-        texts["select_make_label"],
+        get_text(language, "select_make_label"),
         make_names
     )
 
@@ -244,7 +243,7 @@ else:
         if models:
             model_names = [model['model_display'] for model in models]
             selected_model_name = st.selectbox(
-                texts["select_model_label"],
+                get_text(language, "select_model_label"),
                 model_names
             )
         else:
@@ -252,219 +251,221 @@ else:
     else:
         selected_model_name = None
 
-# 5. Prix du Véhicule avec sélection de la devise
-st.subheader(texts["price_input_label"])
+# Check if model is selected before proceeding
+if selected_make and selected_model_name:
+    # 5. Prix du Véhicule avec sélection de la devise
+    st.subheader(texts["price_input_label"])
 
-col_currency, col_price = st.columns([1, 2])
+    col_currency, col_price = st.columns([1, 2])
 
-with col_currency:
-    price_currency = st.selectbox(
-        texts["price_currency_label"],
-        texts["price_currency_options"]
-    )
+    with col_currency:
+        price_currency = st.selectbox(
+            texts["price_currency_label"],
+            texts["price_currency_options"]
+        )
 
-with col_price:
-    if language == "French":
-        if price_currency == "DZD":
-            prix_vehicule_dzd = st.number_input("Prix du véhicule (en DZD)", min_value=0, value=1000000, step=10000)
-            prix_vehicule_eur = prix_vehicule_dzd / conversion_rate
+    with col_price:
+        if language == "French":
+            if price_currency == "DZD":
+                prix_vehicule_dzd = st.number_input("Prix du véhicule (en DZD)", min_value=0, value=1000000, step=10000)
+                prix_vehicule_eur = prix_vehicule_dzd / conversion_rate
+            else:
+                prix_vehicule_eur = st.number_input("Prix du véhicule (en EUR)", min_value=0.0, value=1000.0, step=100.0)
+                prix_vehicule_dzd = prix_vehicule_eur * conversion_rate
         else:
-            prix_vehicule_eur = st.number_input("Prix du véhicule (en EUR)", min_value=0.0, value=1000.0, step=100.0)
-            prix_vehicule_dzd = prix_vehicule_eur * conversion_rate
+            if price_currency == "دينار جزائري":
+                prix_vehicule_dzd = st.number_input("سعر المركبة (بالدينار الجزائري)", min_value=0, value=1000000, step=10000)
+                prix_vehicule_eur = prix_vehicule_dzd / conversion_rate
+            else:
+                prix_vehicule_eur = st.number_input("سعر المركبة (باليورو)", min_value=0.0, value=1000.0, step=100.0)
+                prix_vehicule_dzd = prix_vehicule_eur * conversion_rate
+
+    # 6. Autres Informations sur le Véhicule
+    carburant = st.selectbox(texts["fuel_label"], texts["fuel_options"])
+    cylindree = st.number_input(texts["cylindree_label"], min_value=0, max_value=5000, value=1800, step=100)
+    etat = st.selectbox(texts["etat_label"], texts["etat_options"])
+
+    # 7. Calcul des Taxes et Coûts
+    st.header(texts["costs_header"])
+
+    # Fonction pour vérifier l'éligibilité
+    def verifier_eligibilite(age, carburant, cylindree, etat, importer_status, lang):
+        eligibilite = True
+        raisons = []
+
+        # Vérification de l'âge du véhicule
+        if importer_status == LANGUAGE[lang]["status_options"][0]:  # Particulier Résident / مقيم خاص
+            if age > 3:
+                eligibilite = False
+                if lang == "French":
+                    raisons.append("Le véhicule doit avoir moins de 3 ans pour les particuliers résidents.")
+                else:
+                    raisons.append("يجب أن يكون عمر المركبة أقل من 3 سنوات للمقيمين الخاصين.")
+        elif importer_status == LANGUAGE[lang]["status_options"][1]:  # Particulier Non-Résident / مقيم غير مقيم
+            if lang == "French":
+                raisons.append("Conditions spécifiques à Particulier Non-Résident à implémenter.")
+            else:
+                raisons.append("يجب إضافة شروط خاصة بالمقيمين غير المقيمين.")
+
+        # Vérification du carburant et des normes
+        if carburant == LANGUAGE[lang]["fuel_options"][1]:  # Diesel / ديزل
+            if cylindree > 2000:
+                eligibilite = False
+                if lang == "French":
+                    raisons.append("La cylindrée maximale pour les moteurs diesel est de 2000 cm³.")
+                else:
+                    raisons.append("السعة القصوى لمحركات الديزل هي 2000 سم³.")
+        elif carburant == LANGUAGE[lang]["fuel_options"][0]:  # Essence / بنزين
+            if cylindree > 1800:
+                eligibilite = False
+                if lang == "French":
+                    raisons.append("La cylindrée maximale pour les moteurs à essence est de 1800 cm³.")
+                else:
+                    raisons.append("السعة القصوى لمحركات البنزين هي 1800 سم³.")
+
+        # Vérification de l'état de conformité
+        if etat != LANGUAGE[lang]["etat_options"][0]:  # Bon état de marche / حالة جيدة للعمل
+            eligibilite = False
+            if lang == "French":
+                raisons.append("Le véhicule doit être en bon état de marche, sans défaut majeur ou critique.")
+            else:
+                raisons.append("يجب أن تكون المركبة في حالة جيدة للعمل، بدون عيوب كبيرة أو حرجة.")
+
+        return eligibilite, raisons
+
+    # Vérification de l'éligibilité
+    eligible, raisons = verifier_eligibilite(age, carburant, cylindree, etat, importer_status, language)
+
+    if eligible:
+        st.success(texts["eligibility_success"])
     else:
-        if price_currency == "دينار جزائري":
-            prix_vehicule_dzd = st.number_input("سعر المركبة (بالدينار الجزائري)", min_value=0, value=1000000, step=10000)
-            prix_vehicule_eur = prix_vehicule_dzd / conversion_rate
-        else:
-            prix_vehicule_eur = st.number_input("سعر المركبة (باليورو)", min_value=0.0, value=1000.0, step=100.0)
-            prix_vehicule_dzd = prix_vehicule_eur * conversion_rate
+        st.error(texts["eligibility_error"])
+        for raison in raisons:
+            st.write(f"- {raison}")
 
-# 6. Autres Informations sur le Véhicule
-carburant = st.selectbox(texts["fuel_label"], texts["fuel_options"])
-cylindree = st.number_input(texts["cylindree_label"], min_value=0, max_value=5000, value=1800, step=100)
-etat = st.selectbox(texts["etat_label"], texts["etat_options"])
-
-# 7. Calcul des Taxes et Coûts
-st.header(texts["costs_header"])
-
-# Fonction pour vérifier l'éligibilité
-def verifier_eligibilite(age, carburant, cylindree, etat, importer_status, lang):
-    eligibilite = True
-    raisons = []
-
-    # Vérification de l'âge du véhicule
-    if importer_status == LANGUAGE[lang]["status_options"][0]:  # Particulier Résident / مقيم خاص
-        if age > 3:
-            eligibilite = False
-            if lang == "French":
-                raisons.append("Le véhicule doit avoir moins de 3 ans pour les particuliers résidents.")
+    # Calcul des droits de douane
+    def calcul_droits_douane(carburant, cylindree, lang):
+        if carburant == LANGUAGE[lang]["fuel_options"][0]:  # Essence / بنزين
+            if cylindree <= 1800:
+                taux = 15
             else:
-                raisons.append("يجب أن يكون عمر المركبة أقل من 3 سنوات للمقيمين الخاصين.")
-    elif importer_status == LANGUAGE[lang]["status_options"][1]:  # Particulier Non-Résident / مقيم غير مقيم
-        if lang == "French":
-            raisons.append("Conditions spécifiques à Particulier Non-Résident à implémenter.")
-        else:
-            raisons.append("يجب إضافة شروط خاصة بالمقيمين غير المقيمين.")
-
-    # Vérification du carburant et des normes
-    if carburant == LANGUAGE[lang]["fuel_options"][1]:  # Diesel / ديزل
-        if cylindree > 2000:
-            eligibilite = False
-            if lang == "French":
-                raisons.append("La cylindrée maximale pour les moteurs diesel est de 2000 cm³.")
+                taux = 25
+        elif carburant == LANGUAGE[lang]["fuel_options"][1]:  # Diesel / ديزل
+            if cylindree <= 2000:
+                taux = 20
             else:
-                raisons.append("السعة القصوى لمحركات الديزل هي 2000 سم³.")
-    elif carburant == LANGUAGE[lang]["fuel_options"][0]:  # Essence / بنزين
-        if cylindree > 1800:
-            eligibilite = False
-            if lang == "French":
-                raisons.append("La cylindrée maximale pour les moteurs à essence est de 1800 cm³.")
-            else:
-                raisons.append("السعة القصوى لمحركات البنزين هي 1800 سم³.")
-
-    # Vérification de l'état de conformité
-    if etat != LANGUAGE[lang]["etat_options"][0]:  # Bon état de marche / حالة جيدة للعمل
-        eligibilite = False
-        if lang == "French":
-            raisons.append("Le véhicule doit être en bon état de marche, sans défaut majeur ou critique.")
+                taux = 30
         else:
-            raisons.append("يجب أن تكون المركبة في حالة جيدة للعمل، بدون عيوب كبيرة أو حرجة.")
+            taux = 0
+        return taux
 
-    return eligibilite, raisons
+    droits_douane_taux = calcul_droits_douane(carburant, cylindree, language)
 
-# Vérification de l'éligibilité
-eligible, raisons = verifier_eligibilite(age, carburant, cylindree, etat, importer_status, language)
+    # Calcul de la TVA
+    TVA_TAUX = 19
 
-if eligible:
-    st.success(texts["eligibility_success"])
+    # Calcul de la TIC
+    def calcul_TIC(carburant, cylindree, lang):
+        if carburant == LANGUAGE[lang]["fuel_options"][1] and 2000 < cylindree <= 3000:  # Diesel / ديزل
+            return 60
+        else:
+            return 0
+
+    TIC_TAUX = calcul_TIC(carburant, cylindree, language)
+
+    # Estimation des frais annexes
+    frais_annexes = 50000  # Exemple fixe en DZD, à ajuster selon les besoins
+
+    # Calcul des droits de douane
+    droits_douane = (droits_douane_taux / 100) * prix_vehicule_dzd
+    droits_douane_eur = droits_douane / conversion_rate
+
+    # Calcul de la TVA
+    TVA = (TVA_TAUX / 100) * (prix_vehicule_dzd + droits_douane)
+    TVA_eur = TVA / conversion_rate
+
+    # Calcul de la TIC
+    TIC = (TIC_TAUX / 100) * prix_vehicule_dzd
+    TIC_eur = TIC / conversion_rate
+
+    # Calcul total
+    total_dzd = prix_vehicule_dzd + droits_douane + TVA + TIC + frais_annexes
+    total_eur = total_dzd / conversion_rate
+
+    # Conversion des frais annexes en EUR
+    frais_annexes_eur = frais_annexes / conversion_rate
+
+    # Affichage des résultats
+    st.subheader(texts["summary_header"])
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if language == "French":
+            st.markdown("**En DZD:**")
+        else:
+            st.markdown("**بالدينار الجزائري:**")
+        st.write(f"**Droits de Douane ({droits_douane_taux}%):** {droits_douane:,.2f} DZD")
+        st.write(f"**TVA ({TVA_TAUX}%):** {TVA:,.2f} DZD")
+        st.write(f"**TIC ({TIC_TAUX}%):** {TIC:,.2f} DZD")
+        st.write(f"**Frais Annexes:** {frais_annexes:,.2f} DZD")
+        st.write(f"**Total Estimé:** {total_dzd:,.2f} DZD")
+
+    with col2:
+        if language == "French":
+            st.markdown("**En EUR:**")
+        else:
+            st.markdown("**باليورو:**")
+        st.write(f"**Droits de Douane ({droits_douane_taux}%):** {droits_douane_eur:,.2f} EUR")
+        st.write(f"**TVA ({TVA_TAUX}%):** {TVA_eur:,.2f} EUR")
+        st.write(f"**TIC ({TIC_TAUX}%):** {TIC_eur:,.2f} EUR")
+        st.write(f"**Frais Annexes:** {frais_annexes_eur:,.2f} EUR")
+        st.write(f"**Total Estimé:** {total_eur:,.2f} EUR")
+
+    # 8. Documents Requis
+    st.header(texts["document_header"])
+    st.markdown(texts["document_list"])
+
+    # 9. Restrictions Supplémentaires
+    st.header(texts["restrictions_header"])
+    st.markdown(texts["restrictions_list"])
+
+    # 10. Téléchargement du Rapport (Optionnel)
+    st.header(texts["download_header"])
+
+    if st.button(texts["download_button"]):
+        # Création du rapport
+        rapport = {
+            "Droits de Douane (%)": droits_douane_taux,
+            "Droits de Douane (DZD)": droits_douane,
+            "Droits de Douane (EUR)": droits_douane_eur,
+            "TVA (%)": TVA_TAUX,
+            "TVA (DZD)": TVA,
+            "TVA (EUR)": TVA_eur,
+            "TIC (%)": TIC_TAUX,
+            "TIC (DZD)": TIC,
+            "TIC (EUR)": TIC_eur,
+            "Frais Annexes (DZD)": frais_annexes,
+            "Frais Annexes (EUR)": frais_annexes_eur,
+            "Total Estimé (DZD)": total_dzd,
+            "Total Estimé (EUR)": total_eur,
+            "Taux de Conversion (DZD/EUR)": conversion_rate,
+            "Devise du Prix": price_currency
+        }
+
+        df = pd.DataFrame([rapport])
+
+        # Convertir en Excel
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name='Rapport')
+        data = output.getvalue()
+
+        st.download_button(
+            label=texts["download_button"],
+            data=data,
+            file_name=texts["report_filename"],
+            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
 else:
-    st.error(texts["eligibility_error"])
-    for raison in raisons:
-        st.write(f"- {raison}")
-
-# Calcul des droits de douane
-def calcul_droits_douane(carburant, cylindree, lang):
-    if carburant == LANGUAGE[lang]["fuel_options"][0]:  # Essence / بنزين
-        if cylindree <= 1800:
-            taux = 15
-        else:
-            taux = 25
-    elif carburant == LANGUAGE[lang]["fuel_options"][1]:  # Diesel / ديزل
-        if cylindree <= 2000:
-            taux = 20
-        else:
-            taux = 30
-    return taux
-
-droits_douane_taux = calcul_droits_douane(carburant, cylindree, language)
-
-# Calcul de la TVA
-TVA_TAUX = 19
-
-# Calcul de la TIC
-def calcul_TIC(carburant, cylindree, lang):
-    if carburant == LANGUAGE[lang]["fuel_options"][1] and 2000 < cylindree <= 3000:  # Diesel / ديزل
-        return 60
-    else:
-        return 0
-
-TIC_TAUX = calcul_TIC(carburant, cylindree, language)
-
-# Estimation des frais annexes
-frais_annexes = 50000  # Exemple fixe en DZD, à ajuster selon les besoins
-
-# Calcul des droits de douane
-droits_douane = (droits_douane_taux / 100) * prix_vehicule_dzd
-droits_douane_eur = droits_douane / conversion_rate
-
-# Calcul de la TVA
-TVA = (TVA_TAUX / 100) * (prix_vehicule_dzd + droits_douane)
-TVA_eur = TVA / conversion_rate
-
-# Calcul de la TIC
-TIC = (TIC_TAUX / 100) * prix_vehicule_dzd
-TIC_eur = TIC / conversion_rate
-
-# Calcul total
-total_dzd = prix_vehicule_dzd + droits_douane + TVA + TIC + frais_annexes
-total_eur = total_dzd / conversion_rate
-
-# Conversion des frais annexes en EUR
-frais_annexes_eur = frais_annexes / conversion_rate
-
-# Affichage des résultats
-st.subheader(texts["summary_header"])
-
-col1, col2 = st.columns(2)
-
-with col1:
-    if language == "French":
-        st.markdown("**En DZD:**")
-    else:
-        st.markdown("**بالدينار الجزائري:**")
-    st.write(f"**Droits de Douane ({droits_douane_taux}%):** {droits_douane:,.2f} DZD")
-    st.write(f"**TVA ({TVA_TAUX}%):** {TVA:,.2f} DZD")
-    st.write(f"**TIC ({TIC_TAUX}%):** {TIC:,.2f} DZD")
-    st.write(f"**Frais Annexes:** {frais_annexes:,.2f} DZD")
-    st.write(f"**Total Estimé:** {total_dzd:,.2f} DZD")
-
-with col2:
-    if language == "French":
-        st.markdown("**En EUR:**")
-    else:
-        st.markdown("**باليورو:**")
-    st.write(f"**Droits de Douane ({droits_douane_taux}%):** {droits_douane_eur:,.2f} EUR")
-    st.write(f"**TVA ({TVA_TAUX}%):** {TVA_eur:,.2f} EUR")
-    st.write(f"**TIC ({TIC_TAUX}%):** {TIC_eur:,.2f} EUR")
-    st.write(f"**Frais Annexes:** {frais_annexes_eur:,.2f} EUR")
-    st.write(f"**Total Estimé:** {total_eur:,.2f} EUR")
-
-# 8. Documents Requis
-st.header(texts["document_header"])
-st.markdown(texts["document_list"])
-
-# 9. Restrictions Supplémentaires
-st.header(texts["restrictions_header"])
-st.markdown(texts["restrictions_list"])
-
-# 10. Téléchargement du Rapport (Optionnel)
-st.header(texts["download_header"])
-
-if st.button(texts["download_button"]):
-    # Création du rapport
-    rapport = {
-        "Droits de Douane (%)": droits_douane_taux,
-        "Droits de Douane (DZD)": droits_douane,
-        "Droits de Douane (EUR)": droits_douane_eur,
-        "TVA (%)": TVA_TAUX,
-        "TVA (DZD)": TVA,
-        "TVA (EUR)": TVA_eur,
-        "TIC (%)": TIC_TAUX,
-        "TIC (DZD)": TIC,
-        "TIC (EUR)": TIC_eur,
-        "Frais Annexes (DZD)": frais_annexes,
-        "Frais Annexes (EUR)": frais_annexes_eur,
-        "Total Estimé (DZD)": total_dzd,
-        "Total Estimé (EUR)": total_eur,
-        "Taux de Conversion (DZD/EUR)": conversion_rate,
-        "Devise du Prix": price_currency,
-        "Marque": selected_make_name,
-        "Modèle": selected_model_name,
-        "Année de Fabrication": manufacture_year,
-        "Mois de Fabrication": manufacture_month_name
-    }
-
-    df = pd.DataFrame([rapport])
-
-    # Convertir en Excel
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Rapport')
-    data = output.getvalue()
-
-    st.download_button(
-        label=texts["download_button"],
-        data=data,
-        file_name=texts["report_filename"],
-        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    )
+    st.info("Veuillez sélectionner une marque et un modèle de véhicule pour estimer les coûts.")
