@@ -344,20 +344,20 @@ if selected_make and selected_model_name:
         if price_type == "HT":
             price_ttc = price * (1 + TVA_TAUX / 100)
             price_ht = price
-            st.write(f"**Prix TTC :** {price_ttc:,.2f} DZD")
+            st.write(f"**Prix TTC :** {price_ttc:,.2f} DZD / {price_ttc / conversion_rate:,.2f} EUR")
         else:
             price_ttc = price
             price_ht = price / (1 + TVA_TAUX / 100)
-            st.write(f"**Prix HT :** {price_ht:,.2f} DZD")
+            st.write(f"**Prix HT :** {price_ht:,.2f} DZD / {price_ht / conversion_rate:,.2f} EUR")
     else:
         if price_type == "HT":
             price_ttc = price * (1 + TVA_TAUX / 100)
             price_ht = price
-            st.write(f"**السعر شامل الضريبة (TTC) :** {price_ttc:,.2f} دينار جزائري")
+            st.write(f"**السعر شامل الضريبة (TTC) :** {price_ttc:,.2f} دينار جزائري / {price_ttc / conversion_rate:,.2f} يورو")
         else:
             price_ttc = price
             price_ht = price / (1 + TVA_TAUX / 100)
-            st.write(f"**السعر قبل الضريبة (HT) :** {price_ht:,.2f} دينار جزائري")
+            st.write(f"**السعر قبل الضريبة (HT) :** {price_ht:,.2f} دينار جزائري / {price_ht / conversion_rate:,.2f} يورو")
 
     # 7. Autres Informations sur le Véhicule
     carburant = st.selectbox(texts["fuel_label"], texts["fuel_options"])
@@ -485,19 +485,23 @@ if selected_make and selected_model_name:
                 resale_price_eur = st.number_input("Prix de revente (en EUR)", min_value=0.0, value=1000.0, step=100.0)
                 resale_price_dzd = resale_price_eur * conversion_rate
                 st.write(f"**Prix de revente en DZD :** {resale_price_dzd:,.2f} DZD")
+                st.write(f"**Prix de revente en EUR :** {resale_price_eur:,.2f} EUR")
             else:
                 resale_price_dzd = st.number_input("Prix de revente (en DZD)", min_value=0.0, value=1500000.0, step=10000.0)
                 resale_price_eur = resale_price_dzd / conversion_rate if conversion_rate != 0 else 0
                 st.write(f"**Prix de revente en EUR :** {resale_price_eur:,.2f} EUR")
+                st.write(f"**Prix de revente en DZD :** {resale_price_dzd:,.2f} DZD")
         else:
             if resale_price_currency == "يورو":
                 resale_price_eur = st.number_input("سعر إعادة البيع (باليورو)", min_value=0.0, value=1000.0, step=100.0)
                 resale_price_dzd = resale_price_eur * conversion_rate
                 st.write(f"**سعر إعادة البيع بالدينار الجزائري :** {resale_price_dzd:,.2f} دينار جزائري")
+                st.write(f"**سعر إعادة البيع باليورو :** {resale_price_eur:,.2f} يورو")
             else:
                 resale_price_dzd = st.number_input("سعر إعادة البيع (بالدينار الجزائري)", min_value=0.0, value=1500000.0, step=10000.0)
                 resale_price_eur = resale_price_dzd / conversion_rate if conversion_rate != 0 else 0
                 st.write(f"**سعر إعادة البيع باليورو :** {resale_price_eur:,.2f} يورو")
+                st.write(f"**سعر إعادة البيع بالدينار الجزائري :** {resale_price_dzd:,.2f} دينار جزائري")
 
     # Calcul du bénéfice
     benefit_dzd = resale_price_dzd - total_dzd
@@ -518,12 +522,12 @@ if selected_make and selected_model_name:
             st.markdown("**En DZD:**")
         else:
             st.markdown("**بالدينار الجزائري:**")
-        st.write(f"**Prix TTC :** {price_ttc:,.2f} DZD" if language == "French" else f"**السعر شامل الضريبة (TTC) :** {price_ttc:,.2f} دينار جزائري")
-        st.write(f"**Droits de Douane ({droits_douane_taux}%):** {droits_douane:,.2f} DZD")
-        st.write(f"**TVA ({TVA_TAUX}%):** {TVA:,.2f} DZD")
-        st.write(f"**TIC ({TIC_TAUX}%):** {TIC:,.2f} DZD")
-        st.write(f"**Frais Annexes:** {frais_annexes:,.2f} DZD")
-        st.write(f"**Total Estimé:** {total_dzd:,.2f} DZD")
+        st.write(f"**Prix TTC :** {price_ttc:,.2f} DZD / {price_ttc / conversion_rate:,.2f} EUR" if language == "French" else f"**السعر شامل الضريبة (TTC) :** {price_ttc:,.2f} دينار جزائري / {price_ttc / conversion_rate:,.2f} يورو")
+        st.write(f"**Droits de Douane ({droits_douane_taux}%):** {droits_douane:,.2f} DZD / {droits_douane_eur:,.2f} EUR")
+        st.write(f"**TVA ({TVA_TAUX}%):** {TVA:,.2f} DZD / {TVA_eur:,.2f} EUR")
+        st.write(f"**TIC ({TIC_TAUX}%):** {TIC:,.2f} DZD / {TIC_eur:,.2f} EUR")
+        st.write(f"**Frais Annexes:** {frais_annexes:,.2f} DZD / {frais_annexes_eur:,.2f} EUR")
+        st.write(f"**Total Estimé:** {total_dzd:,.2f} DZD / {total_eur:,.2f} EUR")
 
     with col2:
         if language == "French":
