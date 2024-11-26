@@ -215,127 +215,122 @@ st.markdown(texts["introduction"])
 st.sidebar.header(texts["sidebar_header"])
 
 # 1. Statut de l'Importateur
-importer_status = st.sidebar.selectbox(
-    texts["select_status"],
-    texts["status_options"]
-)
-
-# 2. Taux de Conversion
-st.sidebar.subheader(texts["conversion_subheader"])
-conversion_rate = st.sidebar.number_input(
-    texts["conversion_label"],
-    min_value=1.0,
-    value=150.0,
-    step=1.0
-)
-
-# 3. Taux de TVA (Modifiable)
-st.sidebar.subheader(texts["vat_subheader"])
-vat_rate = st.sidebar.number_input(
-    texts["vat_label"],
-    min_value=0.0,
-    max_value=100.0,
-    value=19.0,
-    step=0.1
-)
-
-# 4. Informations sur le Véhicule
-st.header(texts["vehicle_info_header"])
-
-# Sélection de l'année et du mois de fabrication avec noms de mois
-col_year, col_month = st.columns(2)
-
-with col_year:
-    current_year = datetime.now().year
-    manufacture_year = st.number_input(
-        f"{texts['manufacture_date_label']} - " + ("Année" if language == "French" else "السنة"),
-        min_value=1900,
-        max_value=current_year,
-        value=current_year,
-        step=1
+with st.sidebar:
+    importer_status = st.selectbox(
+        texts["select_status"],
+        texts["status_options"]
     )
 
-with col_month:
-    months = texts["months"]
-    manufacture_month_name = st.selectbox(
-        f"{texts['manufacture_date_label']} - " + ("Mois" if language == "French" else "الشهر"),
-        months
+    # 2. Taux de Conversion
+    st.sidebar.subheader(texts["conversion_subheader"])
+    conversion_rate = st.sidebar.number_input(
+        texts["conversion_label"],
+        min_value=1.0,
+        value=150.0,
+        step=1.0
     )
-    # Map the selected month name to month number
-    manufacture_month = months.index(manufacture_month_name) + 1
 
-# Calcul de l'âge du véhicule
-def calculate_age(year, month):
-    today = datetime.now()
-    manufacture_date = datetime(year, month, 1)
-    age_in_years = today.year - manufacture_date.year
-    age_in_months = today.month - manufacture_date.month
-    if age_in_months < 0:
-        age_in_years -= 1
-        age_in_months += 12
-    return age_in_years + age_in_months / 12
-
-age = calculate_age(manufacture_year, manufacture_month)
-
-# 5. Sélection de la Marque et du Modèle du Véhicule
-st.subheader(texts["vehicle_info_header"])
-
-# Récupérer les marques préenregistrées
-makes = list(MAKES_MODELS.keys())
-selected_make = st.selectbox(
-    texts["select_make_label"],
-    makes
-)
-
-# Récupérer les modèles basés sur la marque sélectionnée
-models = MAKES_MODELS.get(selected_make, [])
-if models:
-    selected_model_name = st.selectbox(
-        texts["select_model_label"],
-        models
+    # 3. Taux de TVA (Modifiable)
+    st.sidebar.subheader(texts["vat_subheader"])
+    vat_rate = st.sidebar.number_input(
+        texts["vat_label"],
+        min_value=0.0,
+        max_value=100.0,
+        value=19.0,
+        step=0.1
     )
-else:
-    selected_model_name = None
-    st.warning("Aucun modèle disponible pour cette marque.")
 
-# Vérifier si une marque et un modèle sont sélectionnés avant de procéder aux calculs
-if selected_make and selected_model_name:
-    # 6. Prix du Véhicule avec sélection de la devise et HT/TTC
+# Utilisation des onglets pour organiser le contenu principal
+tabs = st.tabs(["📄 Informations Véhicule", "💰 Coûts & Taxes", "📈 Revente & Bénéfice", "📋 Résumé & Rapport"])
+
+# **Onglet 1 : Informations Véhicule**
+with tabs[0]:
+    st.header(texts["vehicle_info_header"])
+    with st.container():
+        col_year, col_month = st.columns(2)
+        with col_year:
+            current_year = datetime.now().year
+            manufacture_year = st.number_input(
+                f"{texts['manufacture_date_label']} - " + ("Année" if language == "French" else "السنة"),
+                min_value=1900,
+                max_value=current_year,
+                value=current_year,
+                step=1
+            )
+        with col_month:
+            months = texts["months"]
+            manufacture_month_name = st.selectbox(
+                f"{texts['manufacture_date_label']} - " + ("Mois" if language == "French" else "الشهر"),
+                months
+            )
+            # Map the selected month name to month number
+            manufacture_month = months.index(manufacture_month_name) + 1
+
+    # Calcul de l'âge du véhicule
+    def calculate_age(year, month):
+        today = datetime.now()
+        manufacture_date = datetime(year, month, 1)
+        age_in_years = today.year - manufacture_date.year
+        age_in_months = today.month - manufacture_date.month
+        if age_in_months < 0:
+            age_in_years -= 1
+            age_in_months += 12
+        return age_in_years + age_in_months / 12
+
+    age = calculate_age(manufacture_year, manufacture_month)
+
+    # Sélection de la Marque et du Modèle du Véhicule
+    with st.container():
+        col_make, col_model = st.columns(2)
+        with col_make:
+            makes = list(MAKES_MODELS.keys())
+            selected_make = st.selectbox(
+                texts["select_make_label"],
+                makes
+            )
+        with col_model:
+            models = MAKES_MODELS.get(selected_make, [])
+            if models:
+                selected_model_name = st.selectbox(
+                    texts["select_model_label"],
+                    models
+                )
+            else:
+                selected_model_name = None
+                st.warning("Aucun modèle disponible pour cette marque.")
+
+    # Prix du Véhicule avec sélection de la devise et HT/TTC
     st.subheader(texts["price_input_label"])
-
-    col_currency, col_price, col_price_type = st.columns([1, 2, 1])
-
-    with col_currency:
-        price_currency = st.selectbox(
-            texts["price_currency_label"],
-            texts["price_currency_options"]
-        )
-
-    with col_price:
-        if language == "French":
-            price_input_label = "Prix du véhicule"
-            if price_currency == "DZD":
-                price = st.number_input("Prix du véhicule (en DZD)", min_value=0, value=1000000, step=10000)
-                price_eur = price / conversion_rate if conversion_rate != 0 else 0
+    with st.container():
+        col_currency, col_price, col_price_type = st.columns([1, 2, 1])
+        with col_currency:
+            price_currency = st.selectbox(
+                texts["price_currency_label"],
+                texts["price_currency_options"],
+                key="currency_select"
+            )
+        with col_price:
+            if language == "French":
+                if price_currency == "DZD":
+                    price = st.number_input("Prix du véhicule (en DZD)", min_value=0, value=1000000, step=10000, key="price_dzd")
+                    price_eur = price / conversion_rate if conversion_rate != 0 else 0
+                else:
+                    price_eur = st.number_input("Prix du véhicule (en EUR)", min_value=0.0, value=1000.0, step=100.0, key="price_eur")
+                    price = price_eur * conversion_rate
             else:
-                price = st.number_input("Prix du véhicule (en EUR)", min_value=0.0, value=1000.0, step=100.0)
-                price_eur = price
-                price = price_eur * conversion_rate
-        else:
-            price_input_label = "سعر المركبة"
-            if price_currency == "دينار جزائري":
-                price = st.number_input("سعر المركبة (بالدينار الجزائري)", min_value=0, value=1000000, step=10000)
-                price_eur = price / conversion_rate if conversion_rate != 0 else 0
-            else:
-                price = st.number_input("سعر المركبة (باليورو)", min_value=0.0, value=1000.0, step=100.0)
-                price_eur = price
-                price = price_eur * conversion_rate
+                if price_currency == "دينار جزائري":
+                    price = st.number_input("سعر المركبة (بالدينار الجزائري)", min_value=0, value=1000000, step=10000, key="price_dzd_ar")
+                    price_eur = price / conversion_rate if conversion_rate != 0 else 0
+                else:
+                    price_eur = st.number_input("سعر المركبة (باليورو)", min_value=0.0, value=1000.0, step=100.0, key="price_eur_ar")
+                    price = price_eur * conversion_rate
 
-    with col_price_type:
-        price_type = st.selectbox(
-            texts["price_type_label"],
-            texts["price_type_options"]
-        )
+        with col_price_type:
+            price_type = st.selectbox(
+                texts["price_type_label"],
+                texts["price_type_options"],
+                key="price_type_select"
+            )
 
     # Calcul des prix HT et TTC
     TVA_TAUX = vat_rate  # Utilisation du taux de TVA modifiable
@@ -344,27 +339,33 @@ if selected_make and selected_model_name:
         if price_type == "HT":
             price_ttc = price * (1 + TVA_TAUX / 100)
             price_ht = price
-            st.write(f"**Prix TTC :** {price_ttc:,.2f} DZD / {price_ttc / conversion_rate:,.2f} EUR")
+            st.markdown(f"**Prix TTC :** {price_ttc:,.2f} DZD / {price_ttc / conversion_rate:,.2f} EUR")
         else:
             price_ttc = price
             price_ht = price / (1 + TVA_TAUX / 100)
-            st.write(f"**Prix HT :** {price_ht:,.2f} DZD / {price_ht / conversion_rate:,.2f} EUR")
+            st.markdown(f"**Prix HT :** {price_ht:,.2f} DZD / {price_ht / conversion_rate:,.2f} EUR")
     else:
         if price_type == "HT":
             price_ttc = price * (1 + TVA_TAUX / 100)
             price_ht = price
-            st.write(f"**السعر شامل الضريبة (TTC) :** {price_ttc:,.2f} دينار جزائري / {price_ttc / conversion_rate:,.2f} يورو")
+            st.markdown(f"**السعر شامل الضريبة (TTC) :** {price_ttc:,.2f} دينار جزائري / {price_ttc / conversion_rate:,.2f} يورو")
         else:
             price_ttc = price
             price_ht = price / (1 + TVA_TAUX / 100)
-            st.write(f"**السعر قبل الضريبة (HT) :** {price_ht:,.2f} دينار جزائري / {price_ht / conversion_rate:,.2f} يورو")
+            st.markdown(f"**السعر قبل الضريبة (HT) :** {price_ht:,.2f} دينار جزائري / {price_ht / conversion_rate:,.2f} يورو")
 
-    # 7. Autres Informations sur le Véhicule
-    carburant = st.selectbox(texts["fuel_label"], texts["fuel_options"])
-    cylindree = st.number_input(texts["cylindree_label"], min_value=0, max_value=10000, value=1800, step=100)
-    etat = st.selectbox(texts["etat_label"], texts["etat_options"])
+    # Autres Informations sur le Véhicule
+    with st.container():
+        col_fuel, col_cylindree, col_etat = st.columns(3)
+        with col_fuel:
+            carburant = st.selectbox(texts["fuel_label"], texts["fuel_options"])
+        with col_cylindree:
+            cylindree = st.number_input(texts["cylindree_label"], min_value=0, max_value=10000, value=1800, step=100)
+        with col_etat:
+            etat = st.selectbox(texts["etat_label"], texts["etat_options"])
 
-    # 8. Calcul des Taxes et Coûts
+# **Onglet 2 : Coûts & Taxes**
+with tabs[1]:
     st.header(texts["costs_header"])
 
     # Fonction pour vérifier l'éligibilité
@@ -471,34 +472,75 @@ if selected_make and selected_model_name:
     # Conversion des frais annexes en EUR
     frais_annexes_eur = frais_annexes / conversion_rate if conversion_rate != 0 else 0
 
-    # 9. Option pour Saisir le Prix de Revente et Calculer le Bénéfice
+    # Affichage des coûts et taxes
+    with st.container():
+        col1, col2 = st.columns(2)
+        with col1:
+            if language == "French":
+                st.markdown("**En DZD:**")
+                st.write(f"**Prix TTC :** {price_ttc:,.2f} DZD")
+                st.write(f"**Droits de Douane ({droits_douane_taux}%):** {droits_douane:,.2f} DZD")
+                st.write(f"**TVA ({TVA_TAUX}%):** {TVA:,.2f} DZD")
+                st.write(f"**TIC ({TIC_TAUX}%):** {TIC:,.2f} DZD")
+                st.write(f"**Frais Annexes :** {frais_annexes:,.2f} DZD")
+                st.write(f"**Total Estimé :** {total_dzd:,.2f} DZD")
+            else:
+                st.markdown("**بالدينار الجزائري:**")
+                st.write(f"**السعر شامل الضريبة (TTC) :** {price_ttc:,.2f} دينار جزائري")
+                st.write(f"**حقوق الجمارك ({droits_douane_taux}%):** {droits_douane:,.2f} دينار جزائري")
+                st.write(f"**ضريبة القيمة المضافة ({TVA_TAUX}%):** {TVA:,.2f} دينار جزائري")
+                st.write(f"**ضريبة أخرى ({TIC_TAUX}%):** {TIC:,.2f} دينار جزائري")
+                st.write(f"**الرسوم الإضافية :** {frais_annexes:,.2f} دينار جزائري")
+                st.write(f"**الإجمالي المقدر :** {total_dzd:,.2f} دينار جزائري")
+
+        with col2:
+            if language == "French":
+                st.markdown("**En EUR:**")
+                st.write(f"**Prix TTC :** {price_ttc / conversion_rate:,.2f} EUR")
+                st.write(f"**Droits de Douane ({droits_douane_taux}%):** {droits_douane_eur:,.2f} EUR")
+                st.write(f"**TVA ({TVA_TAUX}%):** {TVA_eur:,.2f} EUR")
+                st.write(f"**TIC ({TIC_TAUX}%):** {TIC_eur:,.2f} EUR")
+                st.write(f"**Frais Annexes :** {frais_annexes_eur:,.2f} EUR")
+                st.write(f"**Total Estimé :** {total_eur:,.2f} EUR")
+            else:
+                st.markdown("**باليورو:**")
+                st.write(f"**السعر شامل الضريبة (TTC) :** {price_ttc / conversion_rate:,.2f} يورو")
+                st.write(f"**حقوق الجمارك ({droits_douane_taux}%):** {droits_douane_eur:,.2f} يورو")
+                st.write(f"**ضريبة القيمة المضافة ({TVA_TAUX}%):** {TVA_eur:,.2f} يورو")
+                st.write(f"**ضريبة أخرى ({TIC_TAUX}%):** {TIC_eur:,.2f} يورو")
+                st.write(f"**الرسوم الإضافية :** {frais_annexes_eur:,.2f} يورو")
+                st.write(f"**الإجمالي المقدر :** {total_eur:,.2f} يورو")
+
+# **Onglet 3 : Revente & Bénéfice**
+with tabs[2]:
     st.header("Calcul du Bénéfice de Revente" if language == "French" else "حساب الفائدة من إعادة البيع")
 
     resale_price_currency = st.selectbox(
         texts["resale_price_currency_label"],
-        texts["resale_price_currency_options"]
+        texts["resale_price_currency_options"],
+        key="resale_currency_select"
     )
 
     with st.container():
         if language == "French":
             if resale_price_currency == "EUR":
-                resale_price_eur = st.number_input("Prix de revente (en EUR)", min_value=0.0, value=1000.0, step=100.0)
+                resale_price_eur = st.number_input("Prix de revente (en EUR)", min_value=0.0, value=1000.0, step=100.0, key="resale_eur")
                 resale_price_dzd = resale_price_eur * conversion_rate
                 st.write(f"**Prix de revente en DZD :** {resale_price_dzd:,.2f} DZD")
                 st.write(f"**Prix de revente en EUR :** {resale_price_eur:,.2f} EUR")
             else:
-                resale_price_dzd = st.number_input("Prix de revente (en DZD)", min_value=0.0, value=1500000.0, step=10000.0)
+                resale_price_dzd = st.number_input("Prix de revente (en DZD)", min_value=0.0, value=1500000.0, step=10000.0, key="resale_dzd")
                 resale_price_eur = resale_price_dzd / conversion_rate if conversion_rate != 0 else 0
                 st.write(f"**Prix de revente en EUR :** {resale_price_eur:,.2f} EUR")
                 st.write(f"**Prix de revente en DZD :** {resale_price_dzd:,.2f} DZD")
         else:
             if resale_price_currency == "يورو":
-                resale_price_eur = st.number_input("سعر إعادة البيع (باليورو)", min_value=0.0, value=1000.0, step=100.0)
+                resale_price_eur = st.number_input("سعر إعادة البيع (باليورو)", min_value=0.0, value=1000.0, step=100.0, key="resale_eur_ar")
                 resale_price_dzd = resale_price_eur * conversion_rate
                 st.write(f"**سعر إعادة البيع بالدينار الجزائري :** {resale_price_dzd:,.2f} دينار جزائري")
                 st.write(f"**سعر إعادة البيع باليورو :** {resale_price_eur:,.2f} يورو")
             else:
-                resale_price_dzd = st.number_input("سعر إعادة البيع (بالدينار الجزائري)", min_value=0.0, value=1500000.0, step=10000.0)
+                resale_price_dzd = st.number_input("سعر إعادة البيع (بالدينار الجزائري)", min_value=0.0, value=1500000.0, step=10000.0, key="resale_dzd_ar")
                 resale_price_eur = resale_price_dzd / conversion_rate if conversion_rate != 0 else 0
                 st.write(f"**سعر إعادة البيع باليورو :** {resale_price_eur:,.2f} يورو")
                 st.write(f"**سعر إعادة البيع بالدينار الجزائري :** {resale_price_dzd:,.2f} دينار جزائري")
@@ -512,44 +554,39 @@ if selected_make and selected_model_name:
     else:
         st.warning(f"{texts['benefit_label']}: {benefit_dzd:,.2f} DZD / {benefit_eur:,.2f} EUR")
 
-    # 10. Affichage des Résultats et Génération du Rapport PDF
+# **Onglet 4 : Résumé & Rapport**
+with tabs[3]:
     st.subheader(texts["summary_header"])
 
-    col1, col2 = st.columns(2)
+    with st.container():
+        col1, col2 = st.columns(2)
+        with col1:
+            if language == "French":
+                st.markdown("**En DZD:**")
+                st.write(f"**Prix TTC :** {price_ttc:,.2f} DZD / {price_ttc / conversion_rate:,.2f} EUR")
+                st.write(f"**Droits de Douane ({droits_douane_taux}%):** {droits_douane:,.2f} DZD / {droits_douane_eur:,.2f} EUR")
+                st.write(f"**TVA ({TVA_TAUX}%):** {TVA:,.2f} DZD / {TVA_eur:,.2f} EUR")
+                st.write(f"**TIC ({TIC_TAUX}%):** {TIC:,.2f} DZD / {TIC_eur:,.2f} EUR")
+                st.write(f"**Frais Annexes :** {frais_annexes:,.2f} DZD / {frais_annexes_eur:,.2f} EUR")
+                st.write(f"**Total Estimé :** {total_dzd:,.2f} DZD / {total_eur:,.2f} EUR")
+            else:
+                st.markdown("**بالدينار الجزائري:**")
+                st.write(f"**السعر شامل الضريبة (TTC) :** {price_ttc:,.2f} دينار جزائري / {price_ttc / conversion_rate:,.2f} يورو")
+                st.write(f"**حقوق الجمارك ({droits_douane_taux}%):** {droits_douane:,.2f} دينار جزائري / {droits_douane_eur:,.2f} يورو")
+                st.write(f"**ضريبة القيمة المضافة ({TVA_TAUX}%):** {TVA:,.2f} دينار جزائري / {TVA_eur:,.2f} يورو")
+                st.write(f"**ضريبة أخرى ({TIC_TAUX}%):** {TIC:,.2f} دينار جزائري / {TIC_eur:,.2f} يورو")
+                st.write(f"**الرسوم الإضافية :** {frais_annexes:,.2f} دينار جزائري / {frais_annexes_eur:,.2f} يورو")
+                st.write(f"**الإجمالي المقدر :** {total_dzd:,.2f} دينار جزائري / {total_eur:,.2f} يورو")
 
-    with col1:
-        if language == "French":
-            st.markdown("**En DZD:**")
-        else:
-            st.markdown("**بالدينار الجزائري:**")
-        st.write(f"**Prix TTC :** {price_ttc:,.2f} DZD / {price_ttc / conversion_rate:,.2f} EUR" if language == "French" else f"**السعر شامل الضريبة (TTC) :** {price_ttc:,.2f} دينار جزائري / {price_ttc / conversion_rate:,.2f} يورو")
-        st.write(f"**Droits de Douane ({droits_douane_taux}%):** {droits_douane:,.2f} DZD / {droits_douane_eur:,.2f} EUR")
-        st.write(f"**TVA ({TVA_TAUX}%):** {TVA:,.2f} DZD / {TVA_eur:,.2f} EUR")
-        st.write(f"**TIC ({TIC_TAUX}%):** {TIC:,.2f} DZD / {TIC_eur:,.2f} EUR")
-        st.write(f"**Frais Annexes:** {frais_annexes:,.2f} DZD / {frais_annexes_eur:,.2f} EUR")
-        st.write(f"**Total Estimé:** {total_dzd:,.2f} DZD / {total_eur:,.2f} EUR")
-
-    with col2:
-        if language == "French":
-            st.markdown("**En EUR:**")
-        else:
-            st.markdown("**باليورو:**")
-        st.write(f"**Prix TTC :** {price_ttc / conversion_rate:,.2f} EUR" if language == "French" else f"**السعر شامل الضريبة (TTC) :** {price_ttc / conversion_rate:,.2f} يورو")
-        st.write(f"**Droits de Douane ({droits_douane_taux}%):** {droits_douane_eur:,.2f} EUR")
-        st.write(f"**TVA ({TVA_TAUX}%):** {TVA_eur:,.2f} EUR")
-        st.write(f"**TIC ({TIC_TAUX}%):** {TIC_eur:,.2f} EUR")
-        st.write(f"**Frais Annexes:** {frais_annexes_eur:,.2f} EUR")
-        st.write(f"**Total Estimé:** {total_eur:,.2f} EUR")
-
-    # 11. Documents Requis
+    # Documents Requis
     st.header(texts["document_header"])
     st.markdown(texts["document_list"])
 
-    # 12. Restrictions Supplémentaires
+    # Restrictions Supplémentaires
     st.header(texts["restrictions_header"])
     st.markdown(texts["restrictions_list"])
 
-    # 13. Téléchargement du Rapport en PDF
+    # Téléchargement du Rapport en PDF
     st.header(texts["download_header"])
 
     if FPDF_AVAILABLE:
@@ -635,5 +672,3 @@ if selected_make and selected_model_name:
                 st.error(f"Erreur lors de la génération du PDF : {e}")
     else:
         st.warning("La génération de rapports PDF nécessite l'installation du module 'fpdf'. Veuillez l'installer pour utiliser cette fonctionnalité.")
-else:
-    st.info("Veuillez sélectionner une marque et un modèle de véhicule pour estimer les coûts.")
