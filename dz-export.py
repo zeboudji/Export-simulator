@@ -188,6 +188,16 @@ with st.sidebar:
         step=0.1
     )
 
+    # 4. Taux de Change pour le Marché Parallèle (Optionnel)
+    st.sidebar.subheader("Taux de Change du Marché Parallèle (Optionnel)")
+    parallel_rate = st.sidebar.number_input(
+        "Entrez le taux de change du marché parallèle DZD par EUR",
+        min_value=1.0,
+        value=150.0,
+        step=1.0,
+        help="Utilisez ce taux si vous souhaitez calculer le bénéfice en utilisant le taux de change du marché parallèle."
+    )
+
 # Utilisation des onglets pour organiser le contenu principal
 tabs = st.tabs(["📄 Informations Véhicule", "💰 Coûts & Taxes", "📈 Revente & Bénéfice", "📋 Résumé & Rapport"])
 
@@ -259,8 +269,9 @@ with tabs[0]:
         with col_price:
             if language == "French":
                 if price_currency == "DZD":
-                    price = st.number_input("Prix du véhicule (en DZD)", min_value=0, value=1000000, step=10000, key="price_dzd")
+                    price = st.number_input("Prix du véhicule (en DZD)", min_value=0, value=15000000, step=10000, key="price_dzd")
                     price_eur = price / conversion_rate if conversion_rate != 0 else 0
+                    st.markdown("**Note :** 15 000 000 DZD équivalent à 1 000 EUR.")
                 else:
                     price_eur = st.number_input("Prix du véhicule (en EUR)", min_value=0.0, value=10000.0, step=100.0, key="price_eur")
                     price = price_eur * conversion_rate
@@ -275,11 +286,12 @@ with tabs[0]:
                 key="price_type_select"
             )
 
-    # Nouveau : Demander si la TVA du pays d'origine est incluse
+    # Nouveau : Demander si la TVA du pays d'origine est incluse avec info-bulle
     origin_vat_included = st.radio(
         texts["origin_vat_label"],
         texts["origin_vat_options"],
-        index=0  # Par défaut sur 'Oui'
+        index=0,  # Par défaut sur 'Oui'
+        help="Si le prix du véhicule inclut la TVA du pays d'origine (par exemple, la France), sélectionnez 'Oui'. Sinon, sélectionnez 'Non'."
     )
 
     # Ajuster le prix si la TVA du pays d'origine est récupérable
@@ -300,17 +312,29 @@ with tabs[0]:
         # Version arabe...
         pass
 
-    # Autres Informations sur le Véhicule
+    # Autres Informations sur le Véhicule avec info-bulle pour la TIC
     with st.container():
         col_fuel, col_cylindree, col_etat = st.columns(3)
         with col_fuel:
             carburant = st.selectbox(texts["fuel_label"], texts["fuel_options"])
+            st.markdown(
+                "<span title='Sélectionnez le type de carburant du véhicule.'>🔍</span>",
+                unsafe_allow_html=True
+            )
         with col_cylindree:
             cylindree = st.number_input(texts["cylindree_label"], min_value=0, max_value=10000, value=1800, step=100)
+            st.markdown(
+                "<span title='Entrez la cylindrée du moteur en centimètres cubes (cm³).'>🔍</span>",
+                unsafe_allow_html=True
+            )
         with col_etat:
             etat = st.selectbox(texts["etat_label"], texts["etat_options"])
+            st.markdown(
+                "<span title='Sélectionnez l\'état de conformité du véhicule. Un bon état de marche est requis. Défauts mineurs ou majeurs affecteront l\'éligibilité. '>🔍</span>",
+                unsafe_allow_html=True
+            )
 
-    # Vérification de l'éligibilité du véhicule
+    # Vérification de l'éligibilité du véhicule avec explications
     st.subheader("Éligibilité du Véhicule")
     def verifier_eligibilite(age, carburant, cylindree, etat, importer_status, lang):
         eligibilite = True
@@ -444,8 +468,13 @@ with tabs[1]:
 
     costs_df = pd.DataFrame(costs_data)
 
-    # Affichage du tableau
+    # Affichage du tableau avec info-bulle sur la TVA
+    st.markdown("### **Détails des Coûts et Taxes**")
     st.table(costs_df)
+    st.markdown(
+        "<span title='La TVA est calculée sur le montant avant TVA, incluant le prix HT, les droits de douane, la TIC et les frais annexes.'>ℹ️</span> **Note :** La TVA est calculée sur la somme des éléments précédents.",
+        unsafe_allow_html=True
+    )
 
 # **Onglet 3 : Revente & Bénéfice**
 with tabs[2]:
@@ -463,17 +492,21 @@ with tabs[2]:
         with col_resale_price:
             if language == "French":
                 if resale_price_currency == "EUR":
-                    resale_price_eur = st.number_input("Prix de revente (en EUR)", min_value=0.0, value=15000.0, step=100.0, key="resale_eur")
+                    resale_price_eur = st.number_input("Prix de revente (en EUR)", min_value=0.0, value=1000.0, step=10.0, key="resale_eur")
                     resale_price_dzd = resale_price_eur * conversion_rate
                 else:
-                    resale_price_dzd = st.number_input("Prix de revente (en DZD)", min_value=0.0, value=2000000.0, step=10000.0, key="resale_dzd")
+                    resale_price_dzd = st.number_input("Prix de revente (en DZD)", min_value=0.0, value=15000000.0, step=100000.0, key="resale_dzd")
                     resale_price_eur = resale_price_dzd / conversion_rate if conversion_rate != 0 else 0
             else:
                 # Version arabe...
                 pass
 
-    # Affichage des prix de revente
+    # Affichage des prix de revente avec traduction
     st.markdown(f"**Prix de revente en DZD :** {resale_price_dzd:,.2f} DZD / {resale_price_eur:,.2f} EUR")
+    st.markdown(
+        "<span title='En dialecte algérien, 15 000 000 DZD équivalent à 1 000 EUR.'>ℹ️</span>",
+        unsafe_allow_html=True
+    )
 
     # Calcul du bénéfice
     benefit_dzd = resale_price_dzd - total_dzd
@@ -514,11 +547,11 @@ with tabs[2]:
                     step=100.0,
                     key="desired_profit_eur"
                 )
-                desired_profit_dzd = desired_profit_eur * conversion_rate
+                desired_profit_dzd = desired_profit_eur * (parallel_rate if parallel_rate else conversion_rate)
 
     # Calculer le prix minimum de revente nécessaire
     minimum_resale_price_dzd = total_dzd + desired_profit_dzd
-    minimum_resale_price_eur = minimum_resale_price_dzd / conversion_rate if conversion_rate != 0 else 0
+    minimum_resale_price_eur = minimum_resale_price_dzd / (parallel_rate if parallel_rate else conversion_rate) if (parallel_rate if parallel_rate else conversion_rate) != 0 else 0
 
     # Afficher le prix minimum de revente
     st.markdown(f"**{texts['minimum_resale_price_label']} :** {minimum_resale_price_dzd:,.2f} DZD / {minimum_resale_price_eur:,.2f} EUR")
@@ -619,13 +652,13 @@ with tabs[3]:
 
                 # Ajouter un chapitre pour les coûts et taxes
                 pdf.chapter_title(texts["costs_header"])
-                costs_data = {
+                costs_data_pdf = {
                     "Description": summary_data["Description"][:7],
                     "En DZD": summary_data["En DZD"][:7],
                     "En EUR": summary_data["En EUR"][:7]
                 }
-                costs_df = pd.DataFrame(costs_data)
-                pdf.add_table(costs_df, "Coûts et Taxes")
+                costs_df_pdf = pd.DataFrame(costs_data_pdf)
+                pdf.add_table(costs_df_pdf, "Coûts et Taxes")
 
                 # Ajouter un chapitre pour le bénéfice de revente
                 pdf.chapter_title("Calcul du Bénéfice de Revente")
