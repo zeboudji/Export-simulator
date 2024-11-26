@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from io import BytesIO
 from datetime import datetime
+from fpdf import FPDF
 
 # Dictionnaire des textes pour les différentes langues
 LANGUAGE = {
@@ -43,14 +44,21 @@ LANGUAGE = {
         """,
         "download_header": "Télécharger le Rapport d'Estimation",
         "download_button": "Télécharger le Rapport",
-        "report_filename": "rapport_importation.xlsx",
+        "report_filename": "rapport_importation.pdf",
         "months": [
             "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
             "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
         ],
         "select_make_label": "Sélectionnez la marque",
         "select_model_label": "Sélectionnez le modèle",
-        "loading_models": "Chargement des modèles..."
+        "loading_models": "Chargement des modèles...",
+        "resale_price_label": "Prix de revente souhaité en Algérie",
+        "resale_price_type": "Type de prix de revente",
+        "resale_price_options": ("HT", "TTC"),
+        "benefit_label": "Bénéfice potentiel",
+        "price_type_ht": "Hors Taxe (HT)",
+        "price_type_ttc": "Toutes Taxes Comprises (TTC)",
+        "tax_rate": "19%"  # TVA
     },
     "Arabic": {
         "title": "محاكي استيراد المركبات إلى الجزائر",
@@ -90,14 +98,21 @@ LANGUAGE = {
         """,
         "download_header": "تحميل تقرير التقدير",
         "download_button": "تحميل التقرير",
-        "report_filename": "rapport_importation.xlsx",
+        "report_filename": "rapport_importation.pdf",
         "months": [
             "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
             "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"
         ],
         "select_make_label": "اختر العلامة التجارية",
         "select_model_label": "اختر الطراز",
-        "loading_models": "جارٍ تحميل الطرازات..."
+        "loading_models": "جارٍ تحميل الطرازات...",
+        "resale_price_label": "سعر إعادة البيع المطلوب في الجزائر",
+        "resale_price_type": "نوع سعر إعادة البيع",
+        "resale_price_options": ("HT", "TTC"),
+        "benefit_label": "الفائدة المحتملة",
+        "price_type_ht": "قبل الضريبة (HT)",
+        "price_type_ttc": "شامل الضريبة (TTC)",
+        "tax_rate": "19%"  # TVA
     }
 }
 
@@ -118,6 +133,44 @@ MAKES_MODELS = {
     "Toyota": ["Corolla", "Yaris", "RAV4", "C-HR"],
     "Hyundai": ["i20", "i30", "Kona", "Santa Fe"]
 }
+
+# Classe pour générer le PDF
+class PDF(FPDF):
+    def header(self):
+        # Titre
+        self.set_font('Arial', 'B', 16)
+        self.cell(0, 10, 'Rapport d\'Importation de Véhicule', ln=True, align='C')
+        self.ln(10)
+
+    def chapter_title(self, label):
+        # Sous-titre
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 10, label, ln=True)
+        self.ln(5)
+
+    def chapter_body(self, body):
+        # Corps du texte
+        self.set_font('Arial', '', 12)
+        for line in body.split('\n'):
+            self.multi_cell(0, 10, line)
+            self.ln()
+
+    def add_table(self, df, title):
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 10, title, ln=True)
+        self.ln(2)
+        # Table
+        self.set_font('Arial', 'B', 10)
+        col_width = self.epw / len(df.columns)  # distribute content evenly
+        for col in df.columns:
+            self.cell(col_width, 10, col, border=1, align='C')
+        self.ln()
+        self.set_font('Arial', '', 10)
+        for index, row in df.iterrows():
+            for item in row:
+                self.cell(col_width, 10, f"{item}", border=1)
+            self.ln()
+        self.ln(10)
 
 # Sélection de la langue
 st.sidebar.header("Language / اللغة")
@@ -357,7 +410,34 @@ if selected_make and selected_model_name:
     # Conversion des frais annexes en EUR
     frais_annexes_eur = frais_annexes / conversion_rate if conversion_rate != 0 else 0
 
-    # Affichage des résultats
+    # 8. Option pour Saisir le Prix de Revente et Calculer le Bénéfice
+    st.header("Calcul du Bénéfice de Revente")
+
+    resale_price = st.number_input(
+        texts["resale_price_label"],
+        min_value=0.0,
+        value=1500000.0 if language == "French" else 1500000.0,
+        step=10000.0
+    )
+
+    resale_price_type = st.radio(
+        texts["resale_price_type"],
+        texts["resale_price_options"]
+    )
+
+    if resale_price_type == "HT" or resale_price_type == "قبل الضريبة (HT)":
+        resale_price_ttc = resale_price * (1 + TVA_TAUX / 100)
+    else:
+        resale_price_ttc = resale_price
+
+    benefit = resale_price_ttc - total_dzd
+
+    if benefit >= 0:
+        st.success(f"{texts['benefit_label']}: {benefit:,.2f} DZD")
+    else:
+        st.warning(f"{texts['benefit_label']}: {benefit:,.2f} DZD")
+
+    # 9. Affichage des Résultats et Génération du Rapport PDF
     st.subheader(texts["summary_header"])
 
     col1, col2 = st.columns(2)
@@ -384,50 +464,95 @@ if selected_make and selected_model_name:
         st.write(f"**Frais Annexes:** {frais_annexes_eur:,.2f} EUR")
         st.write(f"**Total Estimé:** {total_eur:,.2f} EUR")
 
-    # 8. Documents Requis
+    # 10. Documents Requis
     st.header(texts["document_header"])
     st.markdown(texts["document_list"])
 
-    # 9. Restrictions Supplémentaires
+    # 11. Restrictions Supplémentaires
     st.header(texts["restrictions_header"])
     st.markdown(texts["restrictions_list"])
 
-    # 10. Téléchargement du Rapport (Optionnel)
+    # 12. Téléchargement du Rapport en PDF
     st.header(texts["download_header"])
 
     if st.button(texts["download_button"]):
         # Création du rapport
-        rapport = {
-            "Droits de Douane (%)": droits_douane_taux,
-            "Droits de Douane (DZD)": droits_douane,
-            "Droits de Douane (EUR)": droits_douane_eur,
-            "TVA (%)": TVA_TAUX,
-            "TVA (DZD)": TVA,
-            "TVA (EUR)": TVA_eur,
-            "TIC (%)": TIC_TAUX,
-            "TIC (DZD)": TIC,
-            "TIC (EUR)": TIC_eur,
-            "Frais Annexes (DZD)": frais_annexes,
-            "Frais Annexes (EUR)": frais_annexes_eur,
-            "Total Estimé (DZD)": total_dzd,
-            "Total Estimé (EUR)": total_eur,
-            "Taux de Conversion (DZD/EUR)": conversion_rate,
-            "Devise du Prix": price_currency
+        pdf = PDF()
+        pdf.add_page()
+
+        # Ajouter un chapitre pour les informations générales
+        pdf.chapter_title("Informations Générales")
+        general_info = f"""
+        **Statut de l'Importateur :** {importer_status}
+        
+        **Taux de Conversion (DZD/EUR) :** {conversion_rate}
+        
+        **Marque :** {selected_make}
+        
+        **Modèle :** {selected_model_name}
+        
+        **Date de Fabrication :** {manufacture_year} - {manufacture_month_name}
+        
+        **Type de Carburant :** {carburant}
+        
+        **Cylindrée :** {cylindree} cm³
+        
+        **État de Conformité :** {etat}
+        
+        **Prix du Véhicule :** {prix_vehicule_dzd:,.2f} DZD / {prix_vehicule_eur:,.2f} EUR
+        """
+        pdf.chapter_body(general_info)
+
+        # Ajouter un chapitre pour les coûts et taxes
+        pdf.chapter_title(texts["costs_header"])
+        costs_data = {
+            "Description": [
+                f"Droits de Douane ({droits_douane_taux}%)",
+                f"TVA ({TVA_TAUX}%)",
+                f"TIC ({TIC_TAUX}%)",
+                "Frais Annexes",
+                "Total Estimé"
+            ],
+            "En DZD": [
+                f"{droits_douane:,.2f}",
+                f"{TVA:,.2f}",
+                f"{TIC:,.2f}",
+                f"{frais_annexes:,.2f}",
+                f"{total_dzd:,.2f}"
+            ],
+            "En EUR": [
+                f"{droits_douane_eur:,.2f}",
+                f"{TVA_eur:,.2f}",
+                f"{TIC_eur:,.2f}",
+                f"{frais_annexes_eur:,.2f}",
+                f"{total_eur:,.2f}"
+            ]
         }
+        costs_df = pd.DataFrame(costs_data)
+        pdf.add_table(costs_df, "Coûts et Taxes")
 
-        df = pd.DataFrame([rapport])
+        # Ajouter un chapitre pour le bénéfice de revente
+        pdf.chapter_title("Calcul du Bénéfice de Revente")
+        benefit_info = f"""
+        **Prix de Revente Souhaité :** {resale_price:,.2f} {"HT" if resale_price_type == "HT" or resale_price_type == "قبل الضريبة (HT)" else "TTC"}
+        
+        **Prix de Revente TTC :** {resale_price_ttc:,.2f} DZD
+        
+        **Bénéfice Potentiel :** {benefit:,.2f} DZD
+        """
+        pdf.chapter_body(benefit_info)
 
-        # Convertir en Excel
-        output = BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df.to_excel(writer, index=False, sheet_name='Rapport')
-        data = output.getvalue()
+        # Générer le PDF en mémoire
+        pdf_output = BytesIO()
+        pdf.output(pdf_output)
+        pdf_data = pdf_output.getvalue()
 
+        # Bouton de téléchargement
         st.download_button(
             label=texts["download_button"],
-            data=data,
+            data=pdf_data,
             file_name=texts["report_filename"],
-            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            mime='application/pdf'
         )
 else:
     st.info("Veuillez sélectionner une marque et un modèle de véhicule pour estimer les coûts.")
