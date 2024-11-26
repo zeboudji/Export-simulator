@@ -107,42 +107,42 @@ def get_text(lang, key):
     return LANGUAGE[lang][key]
 
 # Fonctions pour interagir avec l'API CarQuery
-@st.cache_data(show_spinner=False)
+@st.cache_data(ttl=3600)
 def get_makes():
     """Récupère la liste des marques de véhicules depuis CarQuery API."""
     url = "https://www.carqueryapi.com/api/0.3/?cmd=getMakes&callback="
-    try:
-        response = requests.get(url)
-        if response.status_code == 200:
+    response = requests.get(url)
+    if response.status_code == 200:
+        try:
             data = response.json()
             makes = data['Makes']
             # Trier les marques par ordre alphabétique
             makes_sorted = sorted(makes, key=lambda x: x['make_display'])
             return makes_sorted
-        else:
-            st.error("Erreur lors de la récupération des marques.")
+        except ValueError:
+            st.error("Erreur lors du décodage de la réponse JSON.")
             return []
-    except Exception as e:
-        st.error(f"Erreur lors de la récupération des marques: {e}")
+    else:
+        st.error("Erreur lors de la récupération des marques.")
         return []
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(ttl=3600)
 def get_models(make_slug):
     """Récupère la liste des modèles pour une marque donnée depuis CarQuery API."""
     url = f"https://www.carqueryapi.com/api/0.3/?cmd=getModels&make={make_slug}&callback="
-    try:
-        response = requests.get(url)
-        if response.status_code == 200:
+    response = requests.get(url)
+    if response.status_code == 200:
+        try:
             data = response.json()
             models = data['Models']
             # Trier les modèles par ordre alphabétique
             models_sorted = sorted(models, key=lambda x: x['model_display'])
             return models_sorted
-        else:
-            st.error("Erreur lors de la récupération des modèles.")
+        except ValueError:
+            st.error("Erreur lors du décodage de la réponse JSON.")
             return []
-    except Exception as e:
-        st.error(f"Erreur lors de la récupération des modèles: {e}")
+    else:
+        st.error("Erreur lors de la récupération des modèles.")
         return []
 
 # Sélection de la langue
@@ -219,35 +219,38 @@ def calculate_age(year, month):
 age = calculate_age(manufacture_year, manufacture_month)
 
 # 4. Sélection de la Marque et du Modèle du Véhicule
-st.subheader(get_text(language, "vehicle_info_header"))
+st.subheader(texts["vehicle_info_header"])
 
 # Récupérer les marques
 makes = get_makes()
 make_names = [make['make_display'] for make in makes]
 
-selected_make_name = st.selectbox(
-    get_text(language, "select_make_label"),
-    make_names
-)
+if not make_names:
+    st.error("Aucune marque disponible pour le moment. Veuillez réessayer plus tard.")
+else:
+    selected_make_name = st.selectbox(
+        texts["select_make_label"],
+        make_names
+    )
 
-# Récupérer le slug de la marque sélectionnée pour obtenir les modèles
-selected_make = next((make for make in makes if make['make_display'] == selected_make_name), None)
+    # Récupérer le slug de la marque sélectionnée pour obtenir les modèles
+    selected_make = next((make for make in makes if make['make_display'] == selected_make_name), None)
 
-if selected_make:
-    make_slug = selected_make['make_slug']
-    # Récupérer les modèles basés sur la marque sélectionnée
-    with st.spinner(texts["loading_models"]):
-        models = get_models(make_slug)
-    if models:
-        model_names = [model['model_display'] for model in models]
-        selected_model_name = st.selectbox(
-            get_text(language, "select_model_label"),
-            model_names
-        )
+    if selected_make:
+        make_slug = selected_make['make_slug']
+        # Récupérer les modèles basés sur la marque sélectionnée
+        with st.spinner(texts["loading_models"]):
+            models = get_models(make_slug)
+        if models:
+            model_names = [model['model_display'] for model in models]
+            selected_model_name = st.selectbox(
+                texts["select_model_label"],
+                model_names
+            )
+        else:
+            selected_model_name = None
     else:
         selected_model_name = None
-else:
-    selected_model_name = None
 
 # 5. Prix du Véhicule avec sélection de la devise
 st.subheader(texts["price_input_label"])
@@ -372,12 +375,15 @@ frais_annexes = 50000  # Exemple fixe en DZD, à ajuster selon les besoins
 
 # Calcul des droits de douane
 droits_douane = (droits_douane_taux / 100) * prix_vehicule_dzd
+droits_douane_eur = droits_douane / conversion_rate
 
 # Calcul de la TVA
 TVA = (TVA_TAUX / 100) * (prix_vehicule_dzd + droits_douane)
+TVA_eur = TVA / conversion_rate
 
 # Calcul de la TIC
 TIC = (TIC_TAUX / 100) * prix_vehicule_dzd
+TIC_eur = TIC / conversion_rate
 
 # Calcul total
 total_dzd = prix_vehicule_dzd + droits_douane + TVA + TIC + frais_annexes
@@ -385,11 +391,6 @@ total_eur = total_dzd / conversion_rate
 
 # Conversion des frais annexes en EUR
 frais_annexes_eur = frais_annexes / conversion_rate
-
-# Conversion des autres coûts en EUR
-droits_douane_eur = droits_douane / conversion_rate
-TVA_eur = TVA / conversion_rate
-TIC_eur = TIC / conversion_rate
 
 # Affichage des résultats
 st.subheader(texts["summary_header"])
@@ -446,7 +447,11 @@ if st.button(texts["download_button"]):
         "Total Estimé (DZD)": total_dzd,
         "Total Estimé (EUR)": total_eur,
         "Taux de Conversion (DZD/EUR)": conversion_rate,
-        "Devise du Prix": price_currency
+        "Devise du Prix": price_currency,
+        "Marque": selected_make_name,
+        "Modèle": selected_model_name,
+        "Année de Fabrication": manufacture_year,
+        "Mois de Fabrication": manufacture_month_name
     }
 
     df = pd.DataFrame([rapport])
