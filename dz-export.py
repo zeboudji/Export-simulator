@@ -106,21 +106,21 @@ LANGUAGE = {
 def get_text(lang, key):
     return LANGUAGE[lang][key]
 
-# Fonctions pour interagir avec l'API CarQuery
+# Fonctions pour interagir avec l'API NHTSA
 @st.cache_data(show_spinner=False)
-def get_makes():
-    """Récupère la liste des marques de véhicules depuis CarQuery API."""
-    url = "https://www.carqueryapi.com/api/0.3/?cmd=getMakes&callback="
+def get_makes_nhtsa():
+    """Récupère la liste des marques de véhicules depuis l'API NHTSA."""
+    url = "https://vpic.nhtsa.dot.gov/api/vehicles/getallmakes?format=json"
     try:
         response = requests.get(url)
         if response.status_code == 200:
             data = response.json()
-            makes = data.get('Makes', [])
+            makes = data.get('Results', [])
             if not makes:
                 st.error("Aucune marque trouvée.")
                 return []
             # Trier les marques par ordre alphabétique
-            makes_sorted = sorted(makes, key=lambda x: x['make_display'])
+            makes_sorted = sorted(makes, key=lambda x: x['Make_Name'])
             return makes_sorted
         else:
             st.error("Erreur lors de la récupération des marques.")
@@ -130,19 +130,19 @@ def get_makes():
         return []
 
 @st.cache_data(show_spinner=False)
-def get_models(make_slug):
-    """Récupère la liste des modèles pour une marque donnée depuis CarQuery API."""
-    url = f"https://www.carqueryapi.com/api/0.3/?cmd=getModels&make={make_slug}&callback="
+def get_models_nhtsa(make_name):
+    """Récupère la liste des modèles pour une marque donnée depuis l'API NHTSA."""
+    url = f"https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMake/{make_name}?format=json"
     try:
         response = requests.get(url)
         if response.status_code == 200:
             data = response.json()
-            models = data.get('Models', [])
+            models = data.get('Results', [])
             if not models:
                 st.error("Aucun modèle trouvé pour cette marque.")
                 return []
             # Trier les modèles par ordre alphabétique
-            models_sorted = sorted(models, key=lambda x: x['model_display'])
+            models_sorted = sorted(models, key=lambda x: x['Model_Name'])
             return models_sorted
         else:
             st.error("Erreur lors de la récupération des modèles.")
@@ -195,7 +195,7 @@ col_year, col_month = st.columns(2)
 with col_year:
     current_year = datetime.now().year
     manufacture_year = st.number_input(
-        texts["manufacture_date_label"] + " - " + ("Année" if language == "French" else "السنة"),
+        f"{texts['manufacture_date_label']} - " + ("Année" if language == "French" else "السنة"),
         min_value=1900,
         max_value=current_year,
         value=current_year,
@@ -205,7 +205,7 @@ with col_year:
 with col_month:
     months = texts["months"]
     manufacture_month_name = st.selectbox(
-        texts["manufacture_date_label"] + " - " + ("Mois" if language == "French" else "الشهر"),
+        f"{texts['manufacture_date_label']} - " + ("Mois" if language == "French" else "الشهر"),
         months
     )
     # Map the selected month name to month number
@@ -227,35 +227,35 @@ age = calculate_age(manufacture_year, manufacture_month)
 # 4. Sélection de la Marque et du Modèle du Véhicule
 st.subheader(texts["vehicle_info_header"])
 
-# Récupérer les marques
-makes = get_makes()
+# Récupérer les marques via l'API NHTSA
+makes = get_makes_nhtsa()
+selected_make = None
+selected_model_name = None
+
 if not makes:
     st.warning("Aucune marque disponible.")
 else:
-    make_names = [make['make_display'] for make in makes]
+    make_names = [make['Make_Name'] for make in makes]
     selected_make_name = st.selectbox(
         texts["select_make_label"],
         make_names
     )
 
-    # Récupérer le slug de la marque sélectionnée pour obtenir les modèles
-    selected_make = next((make for make in makes if make['make_display'] == selected_make_name), None)
-
-    if selected_make:
-        make_slug = selected_make['make_slug']
-        # Récupérer les modèles basés sur la marque sélectionnée
+    # Récupérer les modèles basés sur la marque sélectionnée
+    if selected_make_name:
         with st.spinner(texts["loading_models"]):
-            models = get_models(make_slug)
+            models = get_models_nhtsa(selected_make_name)
         if models:
-            model_names = [model['model_display'] for model in models]
+            model_names = [model['Model_Name'] for model in models]
             selected_model_name = st.selectbox(
                 texts["select_model_label"],
                 model_names
             )
         else:
-            selected_model_name = None
-    else:
-        selected_model_name = None
+            st.warning("Aucun modèle disponible pour cette marque.")
+    
+    # Assign selected_make if a make is selected
+    selected_make = selected_make_name if selected_make_name else None
 
 # Vérifier si une marque et un modèle sont sélectionnés avant de procéder aux calculs
 if selected_make and selected_model_name:
