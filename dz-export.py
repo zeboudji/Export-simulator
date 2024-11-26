@@ -129,7 +129,7 @@ def get_makes():
 @st.cache_data(ttl=3600)
 def get_models(make_slug):
     """Récupère la liste des modèles pour une marque donnée depuis CarQuery API."""
-    url = "https://www.carqueryapi.com/api/0.3/?cmd=getModels&make={make_slug}&callback="
+    url = f"https://www.carqueryapi.com/api/0.3/?cmd=getModels&make={make_slug}"
     response = requests.get(url)
     if response.status_code == 200:
         try:
