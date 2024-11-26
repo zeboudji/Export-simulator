@@ -486,12 +486,13 @@ if selected_make and selected_model_name:
                 st.write(f"**سعر إعادة البيع باليورو :** {resale_price_eur:,.2f} يورو")
 
     # Calcul du bénéfice
-    benefit = resale_price_dzd - total_dzd
+    benefit_dzd = resale_price_dzd - total_dzd
+    benefit_eur = benefit_dzd / conversion_rate if conversion_rate != 0 else 0
 
-    if benefit >= 0:
-        st.success(f"{texts['benefit_label']}: {benefit:,.2f} DZD")
+    if benefit_dzd >= 0:
+        st.success(f"{texts['benefit_label']}: {benefit_dzd:,.2f} DZD / {benefit_eur:,.2f} EUR")
     else:
-        st.warning(f"{texts['benefit_label']}: {benefit:,.2f} DZD")
+        st.warning(f"{texts['benefit_label']}: {benefit_dzd:,.2f} DZD / {benefit_eur:,.2f} EUR")
 
     # 9. Affichage des Résultats et Génération du Rapport PDF
     st.subheader(texts["summary_header"])
@@ -597,7 +598,7 @@ if selected_make and selected_model_name:
             pdf.chapter_title("Calcul du Bénéfice de Revente" if language == "French" else "حساب الفائدة من إعادة البيع")
             benefit_info = f"""
             **Prix de Revente :** {resale_price_dzd:,.2f} DZD / {resale_price_eur:,.2f} EUR
-            **Bénéfice Potentiel :** {benefit:,.2f} DZD
+            **Bénéfice Potentiel :** {benefit_dzd:,.2f} DZD / {benefit_eur:,.2f} EUR
             """
             pdf.chapter_body(benefit_info)
 
