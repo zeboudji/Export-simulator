@@ -364,11 +364,8 @@ with tabs[0]:
         with col_etat:
             etat = st.selectbox(texts["etat_label"], texts["etat_options"])
 
-# **Onglet 2 : Coûts & Taxes**
-with tabs[1]:
-    st.header(texts["costs_header"])
-
-    # Fonction pour vérifier l'éligibilité
+    # Vérification de l'éligibilité (déplacée ici depuis l'onglet 2)
+    st.subheader("Éligibilité du Véhicule")
     def verifier_eligibilite(age, carburant, cylindree, etat, importer_status, lang):
         eligibilite = True
         raisons = []
@@ -422,6 +419,10 @@ with tabs[1]:
         st.error(texts["eligibility_error"])
         for raison in raisons:
             st.write(f"- {raison}")
+
+# **Onglet 2 : Coûts & Taxes**
+with tabs[1]:
+    st.header(texts["costs_header"])
 
     # Calcul des droits de douane
     def calcul_droits_douane(carburant, cylindree, lang):
@@ -515,35 +516,33 @@ with tabs[1]:
 with tabs[2]:
     st.header("Calcul du Bénéfice de Revente" if language == "French" else "حساب الفائدة من إعادة البيع")
 
-    resale_price_currency = st.selectbox(
-        texts["resale_price_currency_label"],
-        texts["resale_price_currency_options"],
-        key="resale_currency_select"
-    )
-
+    # Aligner les deux champs côte à côte
     with st.container():
-        if language == "French":
-            if resale_price_currency == "EUR":
-                resale_price_eur = st.number_input("Prix de revente (en EUR)", min_value=0.0, value=1000.0, step=100.0, key="resale_eur")
-                resale_price_dzd = resale_price_eur * conversion_rate
-                st.write(f"**Prix de revente en DZD :** {resale_price_dzd:,.2f} DZD")
-                st.write(f"**Prix de revente en EUR :** {resale_price_eur:,.2f} EUR")
+        col_resale_currency, col_resale_price = st.columns(2)
+        with col_resale_currency:
+            resale_price_currency = st.selectbox(
+                texts["resale_price_currency_label"],
+                texts["resale_price_currency_options"],
+                key="resale_currency_select"
+            )
+        with col_resale_price:
+            if language == "French":
+                if resale_price_currency == "EUR":
+                    resale_price_eur = st.number_input("Prix de revente (en EUR)", min_value=0.0, value=1000.0, step=100.0, key="resale_eur")
+                    resale_price_dzd = resale_price_eur * conversion_rate
+                else:
+                    resale_price_dzd = st.number_input("Prix de revente (en DZD)", min_value=0.0, value=1500000.0, step=10000.0, key="resale_dzd")
+                    resale_price_eur = resale_price_dzd / conversion_rate if conversion_rate != 0 else 0
             else:
-                resale_price_dzd = st.number_input("Prix de revente (en DZD)", min_value=0.0, value=1500000.0, step=10000.0, key="resale_dzd")
-                resale_price_eur = resale_price_dzd / conversion_rate if conversion_rate != 0 else 0
-                st.write(f"**Prix de revente en EUR :** {resale_price_eur:,.2f} EUR")
-                st.write(f"**Prix de revente en DZD :** {resale_price_dzd:,.2f} DZD")
-        else:
-            if resale_price_currency == "يورو":
-                resale_price_eur = st.number_input("سعر إعادة البيع (باليورو)", min_value=0.0, value=1000.0, step=100.0, key="resale_eur_ar")
-                resale_price_dzd = resale_price_eur * conversion_rate
-                st.write(f"**سعر إعادة البيع بالدينار الجزائري :** {resale_price_dzd:,.2f} دينار جزائري")
-                st.write(f"**سعر إعادة البيع باليورو :** {resale_price_eur:,.2f} يورو")
-            else:
-                resale_price_dzd = st.number_input("سعر إعادة البيع (بالدينار الجزائري)", min_value=0.0, value=1500000.0, step=10000.0, key="resale_dzd_ar")
-                resale_price_eur = resale_price_dzd / conversion_rate if conversion_rate != 0 else 0
-                st.write(f"**سعر إعادة البيع باليورو :** {resale_price_eur:,.2f} يورو")
-                st.write(f"**سعر إعادة البيع بالدينار الجزائري :** {resale_price_dzd:,.2f} دينار جزائري")
+                if resale_price_currency == "يورو":
+                    resale_price_eur = st.number_input("سعر إعادة البيع (باليورو)", min_value=0.0, value=1000.0, step=100.0, key="resale_eur_ar")
+                    resale_price_dzd = resale_price_eur * conversion_rate
+                else:
+                    resale_price_dzd = st.number_input("سعر إعادة البيع (بالدينار الجزائري)", min_value=0.0, value=1500000.0, step=10000.0, key="resale_dzd_ar")
+                    resale_price_eur = resale_price_dzd / conversion_rate if conversion_rate != 0 else 0
+
+    # Affichage des prix de revente
+    st.markdown(f"**Prix de revente en DZD :** {resale_price_dzd:,.2f} DZD / {resale_price_eur:,.2f} EUR")
 
     # Calcul du bénéfice
     benefit_dzd = resale_price_dzd - total_dzd
@@ -558,25 +557,44 @@ with tabs[2]:
 with tabs[3]:
     st.subheader(texts["summary_header"])
 
-    with st.container():
-        col1, col2 = st.columns(2)
-        with col1:
-            if language == "French":
-                st.markdown("**En DZD:**")
-                st.write(f"**Prix TTC :** {price_ttc:,.2f} DZD / {price_ttc / conversion_rate:,.2f} EUR")
-                st.write(f"**Droits de Douane ({droits_douane_taux}%):** {droits_douane:,.2f} DZD / {droits_douane_eur:,.2f} EUR")
-                st.write(f"**TVA ({TVA_TAUX}%):** {TVA:,.2f} DZD / {TVA_eur:,.2f} EUR")
-                st.write(f"**TIC ({TIC_TAUX}%):** {TIC:,.2f} DZD / {TIC_eur:,.2f} EUR")
-                st.write(f"**Frais Annexes :** {frais_annexes:,.2f} DZD / {frais_annexes_eur:,.2f} EUR")
-                st.write(f"**Total Estimé :** {total_dzd:,.2f} DZD / {total_eur:,.2f} EUR")
-            else:
-                st.markdown("**بالدينار الجزائري:**")
-                st.write(f"**السعر شامل الضريبة (TTC) :** {price_ttc:,.2f} دينار جزائري / {price_ttc / conversion_rate:,.2f} يورو")
-                st.write(f"**حقوق الجمارك ({droits_douane_taux}%):** {droits_douane:,.2f} دينار جزائري / {droits_douane_eur:,.2f} يورو")
-                st.write(f"**ضريبة القيمة المضافة ({TVA_TAUX}%):** {TVA:,.2f} دينار جزائري / {TVA_eur:,.2f} يورو")
-                st.write(f"**ضريبة أخرى ({TIC_TAUX}%):** {TIC:,.2f} دينار جزائري / {TIC_eur:,.2f} يورو")
-                st.write(f"**الرسوم الإضافية :** {frais_annexes:,.2f} دينار جزائري / {frais_annexes_eur:,.2f} يورو")
-                st.write(f"**الإجمالي المقدر :** {total_dzd:,.2f} دينار جزائري / {total_eur:,.2f} يورو")
+    # Affichage des données sous forme de tableau
+    summary_data = {
+        "Description": [
+            f"Prix TTC" if language == "French" else "السعر شامل الضريبة (TTC)",
+            f"Droits de Douane ({droits_douane_taux}%)",
+            f"TVA ({TVA_TAUX}%)",
+            f"TIC ({TIC_TAUX}%)",
+            "Frais Annexes" if language == "French" else "الرسوم الإضافية",
+            f"Total Estimé" if language == "French" else "الإجمالي المقدر",
+            f"Prix de Revente",
+            f"Bénéfice Potentiel" if language == "French" else "الفائدة المحتملة"
+        ],
+        "En DZD": [
+            f"{price_ttc:,.2f}",
+            f"{droits_douane:,.2f}",
+            f"{TVA:,.2f}",
+            f"{TIC:,.2f}",
+            f"{frais_annexes:,.2f}",
+            f"{total_dzd:,.2f}",
+            f"{resale_price_dzd:,.2f}",
+            f"{benefit_dzd:,.2f}"
+        ],
+        "En EUR": [
+            f"{price_ttc / conversion_rate:,.2f}",
+            f"{droits_douane_eur:,.2f}",
+            f"{TVA_eur:,.2f}",
+            f"{TIC_eur:,.2f}",
+            f"{frais_annexes_eur:,.2f}",
+            f"{total_eur:,.2f}",
+            f"{resale_price_eur:,.2f}",
+            f"{benefit_eur:,.2f}"
+        ]
+    }
+
+    summary_df = pd.DataFrame(summary_data)
+
+    # Afficher le tableau
+    st.table(summary_df)
 
     # Documents Requis
     st.header(texts["document_header"])
@@ -624,9 +642,9 @@ with tabs[3]:
                 costs_data = {
                     "Description": [
                         f"Prix TTC" if language == "French" else "السعر شامل الضريبة (TTC)",
-                        f"Droits de Douane ({droits_douane_taux}%)" if language == "French" else f"حقوق الجمارك ({droits_douane_taux}%)",
-                        f"TVA ({TVA_TAUX}%)" if language == "French" else f"ضريبة القيمة المضافة ({TVA_TAUX}%)",
-                        f"TIC ({TIC_TAUX}%)" if language == "French" else f"ضريبة أخرى ({TIC_TAUX}%)",
+                        f"Droits de Douane ({droits_douane_taux}%)",
+                        f"TVA ({TVA_TAUX}%)",
+                        f"TIC ({TIC_TAUX}%)",
                         "Frais Annexes" if language == "French" else "الرسوم الإضافية",
                         f"Total Estimé" if language == "French" else "الإجمالي المقدر"
                     ],
@@ -639,7 +657,7 @@ with tabs[3]:
                         f"{total_dzd:,.2f}"
                     ],
                     "En EUR": [
-                        f"{price_ttc / conversion_rate:,.2f}" if language == "French" else f"{price_ttc / conversion_rate:,.2f}",
+                        f"{price_ttc / conversion_rate:,.2f}",
                         f"{droits_douane_eur:,.2f}",
                         f"{TVA_eur:,.2f}",
                         f"{TIC_eur:,.2f}",
