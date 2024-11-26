@@ -174,28 +174,28 @@ def verifier_eligibilite(age, carburant, cylindree, etat, importer_status, lang)
     raisons = []
 
     # Vérification de l'âge du véhicule
-    if importer_status == texts["status_options"][0]:  # Particulier Résident / مقيم خاص
+    if importer_status == LANGUAGE[lang]["status_options"][0]:  # Particulier Résident / مقيم خاص
         if age > 3:
             eligibilite = False
             if lang == "French":
                 raisons.append("Le véhicule doit avoir moins de 3 ans pour les particuliers résidents.")
             else:
                 raisons.append("يجب أن يكون عمر المركبة أقل من 3 سنوات للمقيمين الخاصين.")
-    elif importer_status == texts["status_options"][1]:  # Particulier Non-Résident / مقيم غير مقيم
+    elif importer_status == LANGUAGE[lang]["status_options"][1]:  # Particulier Non-Résident / مقيم غير مقيم
         if lang == "French":
             raisons.append("Conditions spécifiques à Particulier Non-Résident à implémenter.")
         else:
             raisons.append("يجب إضافة شروط خاصة بالمقيمين غير المقيمين.")
 
     # Vérification du carburant et des normes
-    if carburant == texts["fuel_options"][1]:  # Diesel / ديزل
+    if carburant == LANGUAGE[lang]["fuel_options"][1]:  # Diesel / ديزل
         if cylindree > 2000:
             eligibilite = False
             if lang == "French":
                 raisons.append("La cylindrée maximale pour les moteurs diesel est de 2000 cm³.")
             else:
                 raisons.append("السعة القصوى لمحركات الديزل هي 2000 سم³.")
-    elif carburant == texts["fuel_options"][0]:  # Essence / بنزين
+    elif carburant == LANGUAGE[lang]["fuel_options"][0]:  # Essence / بنزين
         if cylindree > 1800:
             eligibilite = False
             if lang == "French":
@@ -204,7 +204,7 @@ def verifier_eligibilite(age, carburant, cylindree, etat, importer_status, lang)
                 raisons.append("السعة القصوى لمحركات البنزين هي 1800 سم³.")
 
     # Vérification de l'état de conformité
-    if etat != texts["etat_options"][0]:  # Bon état de marche / حالة جيدة للعمل
+    if etat != LANGUAGE[lang]["etat_options"][0]:  # Bon état de marche / حالة جيدة للعمل
         eligibilite = False
         if lang == "French":
             raisons.append("Le véhicule doit être en bon état de marche, sans défaut majeur ou critique.")
@@ -224,32 +224,32 @@ else:
         st.write(f"- {raison}")
 
 # Calcul des droits de douane
-def calcul_droits_douane(carburant, cylindree):
-    if carburant == texts["fuel_options"][0]:  # Essence / بنزين
+def calcul_droits_douane(carburant, cylindree, lang):
+    if carburant == LANGUAGE[lang]["fuel_options"][0]:  # Essence / بنزين
         if cylindree <= 1800:
             taux = 15
         else:
             taux = 25
-    elif carburant == texts["fuel_options"][1]:  # Diesel / ديزل
+    elif carburant == LANGUAGE[lang]["fuel_options"][1]:  # Diesel / ديزل
         if cylindree <= 2000:
             taux = 20
         else:
             taux = 30
     return taux
 
-droits_douane_taux = calcul_droits_douane(carburant, cylindree)
+droits_douane_taux = calcul_droits_douane(carburant, cylindree, language)
 
 # Calcul de la TVA
 TVA_TAUX = 19
 
 # Calcul de la TIC
-def calcul_TIC(carburant, cylindree):
-    if carburant == texts["fuel_options"][1] and 2000 < cylindree <= 3000:  # Diesel / ديزل
+def calcul_TIC(carburant, cylindree, lang):
+    if carburant == LANGUAGE[lang]["fuel_options"][1] and 2000 < cylindree <= 3000:  # Diesel / ديزل
         return 60
     else:
         return 0
 
-TIC_TAUX = calcul_TIC(carburant, cylindree)
+TIC_TAUX = calcul_TIC(carburant, cylindree, language)
 
 # Estimation des frais annexes
 frais_annexes = 50000  # Exemple fixe en DZD, à ajuster selon les besoins
