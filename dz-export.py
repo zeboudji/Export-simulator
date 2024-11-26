@@ -43,18 +43,18 @@ LANGUAGE = {
         "summary_header": "Résumé des Coûts et Taxes",
         "document_header": "Documents Requis pour le Dédouanement",
         "document_list": """
-        1. **Copie de la pièce d'identité** ou carte de résident.
-        2. **Certificat de résidence**.
-        3. **Certificat d'immatriculation** du véhicule à l'étranger.
-        4. **Facture d'achat** ou contrat de vente.
-        5. **Document attestant le bon état de marche** du véhicule (datant de moins de trois mois).
-        6. **Rapport d'expertise de conformité** établi par un expert agréé.
-        """,
+1. **Copie de la pièce d'identité** ou carte de résident.
+2. **Certificat de résidence**.
+3. **Certificat d'immatriculation** du véhicule à l'étranger.
+4. **Facture d'achat** ou contrat de vente.
+5. **Document attestant le bon état de marche** du véhicule (datant de moins de trois mois).
+6. **Rapport d'expertise de conformité** établi par un expert agréé.
+""",
         "restrictions_header": "Restrictions Supplémentaires",
         "restrictions_list": """
-        - **Durée d'Incessibilité** : Le véhicule importé ne peut être cédé avant une période de trois ans suivant son importation.
-        - **Normes Environnementales** : Les véhicules doivent respecter les normes d'émissions en vigueur en Algérie.
-        """,
+- **Durée d'Incessibilité** : Le véhicule importé ne peut être cédé avant une période de trois ans suivant son importation.
+- **Normes Environnementales** : Les véhicules doivent respecter les normes d'émissions en vigueur en Algérie.
+""",
         "download_header": "Télécharger le Rapport d'Estimation",
         "download_button": "Télécharger le Rapport",
         "report_filename": "rapport_importation.pdf",
@@ -411,35 +411,41 @@ with tabs[1]:
     total_dzd = montant_avant_TVA + TVA
     total_eur = total_dzd / conversion_rate if conversion_rate != 0 else 0
 
-    # Affichage des coûts et taxes
-    with st.container():
-        col1, col2 = st.columns(2)
-        with col1:
-            if language == "French":
-                st.markdown("**En DZD:**")
-                st.write(f"**Prix HT sans TVA du pays d'origine :** {price_ht_origin:,.2f} DZD")
-                st.write(f"**Droits de Douane ({droits_douane_taux}%):** {droits_douane:,.2f} DZD")
-                st.write(f"**TIC ({TIC_TAUX}%):** {TIC:,.2f} DZD")
-                st.write(f"**Frais Annexes :** {frais_annexes:,.2f} DZD")
-                st.write(f"**Montant Avant TVA :** {montant_avant_TVA:,.2f} DZD")
-                st.write(f"**TVA Algérienne ({TVA_TAUX}%):** {TVA:,.2f} DZD")
-                st.write(f"**Total Estimé :** {total_dzd:,.2f} DZD")
-            else:
-                # Version arabe...
-                pass
-        with col2:
-            if language == "French":
-                st.markdown("**En EUR:**")
-                st.write(f"**Prix HT sans TVA du pays d'origine :** {price_ht_origin / conversion_rate:,.2f} EUR")
-                st.write(f"**Droits de Douane ({droits_douane_taux}%):** {droits_douane_eur:,.2f} EUR")
-                st.write(f"**TIC ({TIC_TAUX}%):** {TIC_eur:,.2f} EUR")
-                st.write(f"**Frais Annexes :** {frais_annexes_eur:,.2f} EUR")
-                st.write(f"**Montant Avant TVA :** {montant_avant_TVA / conversion_rate:,.2f} EUR")
-                st.write(f"**TVA Algérienne ({TVA_TAUX}%):** {TVA_eur:,.2f} EUR")
-                st.write(f"**Total Estimé :** {total_eur:,.2f} EUR")
-            else:
-                # Version arabe...
-                pass
+    # Présentation des coûts et taxes sous forme de tableau
+    costs_data = {
+        "Description": [
+            f"Prix HT sans TVA du pays d'origine",
+            f"Droits de Douane ({droits_douane_taux}%)",
+            f"TIC ({TIC_TAUX}%)",
+            "Frais Annexes",
+            "Montant Avant TVA",
+            f"TVA Algérienne ({TVA_TAUX}%)",
+            "Total Estimé"
+        ],
+        "En DZD": [
+            f"{price_ht_origin:,.2f}",
+            f"{droits_douane:,.2f}",
+            f"{TIC:,.2f}",
+            f"{frais_annexes:,.2f}",
+            f"{montant_avant_TVA:,.2f}",
+            f"{TVA:,.2f}",
+            f"{total_dzd:,.2f}"
+        ],
+        "En EUR": [
+            f"{price_ht_origin / conversion_rate:,.2f}",
+            f"{droits_douane_eur:,.2f}",
+            f"{TIC_eur:,.2f}",
+            f"{frais_annexes_eur:,.2f}",
+            f"{montant_avant_TVA / conversion_rate:,.2f}",
+            f"{TVA_eur:,.2f}",
+            f"{total_eur:,.2f}"
+        ]
+    }
+
+    costs_df = pd.DataFrame(costs_data)
+
+    # Affichage du tableau
+    st.table(costs_df)
 
 # **Onglet 3 : Revente & Bénéfice**
 with tabs[2]:
@@ -591,24 +597,24 @@ with tabs[3]:
                 # Ajouter un chapitre pour les informations générales
                 pdf.chapter_title("Informations Générales")
                 general_info = f"""
-                **Statut de l'Importateur :** {importer_status}
+**Statut de l'Importateur :** {importer_status}
 
-                **Taux de Conversion (DZD/EUR) :** {conversion_rate}
+**Taux de Conversion (DZD/EUR) :** {conversion_rate}
 
-                **Marque :** {selected_make}
+**Marque :** {selected_make}
 
-                **Modèle :** {selected_model_name}
+**Modèle :** {selected_model_name}
 
-                **Date de Fabrication :** {manufacture_year} - {manufacture_month_name}
+**Date de Fabrication :** {manufacture_year} - {manufacture_month_name}
 
-                **Type de Carburant :** {carburant}
+**Type de Carburant :** {carburant}
 
-                **Cylindrée :** {cylindree} cm³
+**Cylindrée :** {cylindree} cm³
 
-                **État de Conformité :** {etat}
+**État de Conformité :** {etat}
 
-                **Prix du Véhicule :** {price:,.2f} DZD / {price_eur:,.2f} EUR
-                """
+**Prix du Véhicule :** {price:,.2f} DZD / {price_eur:,.2f} EUR
+"""
                 pdf.chapter_body(general_info)
 
                 # Ajouter un chapitre pour les coûts et taxes
@@ -624,11 +630,20 @@ with tabs[3]:
                 # Ajouter un chapitre pour le bénéfice de revente
                 pdf.chapter_title("Calcul du Bénéfice de Revente")
                 benefit_info = f"""
-                **Prix de Revente :** {resale_price_dzd:,.2f} DZD / {resale_price_eur:,.2f} EUR
-                **Bénéfice Potentiel :** {benefit_dzd:,.2f} DZD / {benefit_eur:,.2f} EUR
-                **{texts['minimum_resale_price_label']} :** {minimum_resale_price_dzd:,.2f} DZD / {minimum_resale_price_eur:,.2f} EUR
-                """
+**Prix de Revente :** {resale_price_dzd:,.2f} DZD / {resale_price_eur:,.2f} EUR
+
+**Bénéfice Potentiel :** {benefit_dzd:,.2f} DZD / {benefit_eur:,.2f} EUR
+
+**{texts['minimum_resale_price_label']} :** {minimum_resale_price_dzd:,.2f} DZD / {minimum_resale_price_eur:,.2f} EUR
+"""
                 pdf.chapter_body(benefit_info)
+
+                # Ajouter les documents requis et les restrictions
+                pdf.chapter_title(texts["document_header"])
+                pdf.chapter_body(texts["document_list"])
+
+                pdf.chapter_title(texts["restrictions_header"])
+                pdf.chapter_body(texts["restrictions_list"])
 
                 # Générer le PDF en mémoire
                 pdf_data = pdf.output(dest='S').encode('latin1')
