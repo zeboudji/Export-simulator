@@ -536,84 +536,85 @@ if selected_make and selected_model_name:
 
     if FPDF_AVAILABLE:
         if st.button(texts["download_button"]):
-            # Création du rapport
-            pdf = PDF()
-            pdf.add_page()
+            try:
+                # Création du rapport
+                pdf = PDF()
+                pdf.add_page()
 
-            # Ajouter un chapitre pour les informations générales
-            pdf.chapter_title("Informations Générales" if language == "French" else "المعلومات العامة")
-            general_info = f"""
-            **Statut de l'Importateur :** {importer_status}
+                # Ajouter un chapitre pour les informations générales
+                pdf.chapter_title("Informations Générales" if language == "French" else "المعلومات العامة")
+                general_info = f"""
+                **Statut de l'Importateur :** {importer_status}
 
-            **Taux de Conversion (DZD/EUR) :** {conversion_rate}
+                **Taux de Conversion (DZD/EUR) :** {conversion_rate}
 
-            **Marque :** {selected_make}
+                **Marque :** {selected_make}
 
-            **Modèle :** {selected_model_name}
+                **Modèle :** {selected_model_name}
 
-            **Date de Fabrication :** {manufacture_year} - {manufacture_month_name}
+                **Date de Fabrication :** {manufacture_year} - {manufacture_month_name}
 
-            **Type de Carburant :** {carburant}
+                **Type de Carburant :** {carburant}
 
-            **Cylindrée :** {cylindree} cm³
+                **Cylindrée :** {cylindree} cm³
 
-            **État de Conformité :** {etat}
+                **État de Conformité :** {etat}
 
-            **Prix du Véhicule :** {price:,.2f} DZD / {price_eur:,.2f} EUR
-            """
-            pdf.chapter_body(general_info)
+                **Prix du Véhicule :** {price:,.2f} DZD / {price_eur:,.2f} EUR
+                """
+                pdf.chapter_body(general_info)
 
-            # Ajouter un chapitre pour les coûts et taxes
-            pdf.chapter_title(texts["costs_header"])
-            costs_data = {
-                "Description": [
-                    f"Prix TTC" if language == "French" else "السعر شامل الضريبة (TTC)",
-                    f"Droits de Douane ({droits_douane_taux}%)" if language == "French" else f"حقوق الجمارك ({droits_douane_taux}%)",
-                    f"TVA ({TVA_TAUX}%)" if language == "French" else f"ضريبة القيمة المضافة ({TVA_TAUX}%)",
-                    f"TIC ({TIC_TAUX}%)" if language == "French" else f"ضريبة أخرى ({TIC_TAUX}%)",
-                    "Frais Annexes" if language == "French" else "الرسوم الإضافية",
-                    f"Total Estimé" if language == "French" else "الإجمالي المقدر"
-                ],
-                "En DZD": [
-                    f"{price_ttc:,.2f}",
-                    f"{droits_douane:,.2f}",
-                    f"{TVA:,.2f}",
-                    f"{TIC:,.2f}",
-                    f"{frais_annexes:,.2f}",
-                    f"{total_dzd:,.2f}"
-                ],
-                "En EUR": [
-                    f"{price_ttc / conversion_rate:,.2f}" if language == "French" else f"{price_ttc / conversion_rate:,.2f}",
-                    f"{droits_douane_eur:,.2f}",
-                    f"{TVA_eur:,.2f}",
-                    f"{TIC_eur:,.2f}",
-                    f"{frais_annexes_eur:,.2f}",
-                    f"{total_eur:,.2f}"
-                ]
-            }
-            costs_df = pd.DataFrame(costs_data)
-            pdf.add_table(costs_df, "Coûts et Taxes" if language == "French" else "التكاليف والضرائب")
+                # Ajouter un chapitre pour les coûts et taxes
+                pdf.chapter_title(texts["costs_header"])
+                costs_data = {
+                    "Description": [
+                        f"Prix TTC" if language == "French" else "السعر شامل الضريبة (TTC)",
+                        f"Droits de Douane ({droits_douane_taux}%)" if language == "French" else f"حقوق الجمارك ({droits_douane_taux}%)",
+                        f"TVA ({TVA_TAUX}%)" if language == "French" else f"ضريبة القيمة المضافة ({TVA_TAUX}%)",
+                        f"TIC ({TIC_TAUX}%)" if language == "French" else f"ضريبة أخرى ({TIC_TAUX}%)",
+                        "Frais Annexes" if language == "French" else "الرسوم الإضافية",
+                        f"Total Estimé" if language == "French" else "الإجمالي المقدر"
+                    ],
+                    "En DZD": [
+                        f"{price_ttc:,.2f}",
+                        f"{droits_douane:,.2f}",
+                        f"{TVA:,.2f}",
+                        f"{TIC:,.2f}",
+                        f"{frais_annexes:,.2f}",
+                        f"{total_dzd:,.2f}"
+                    ],
+                    "En EUR": [
+                        f"{price_ttc / conversion_rate:,.2f}" if language == "French" else f"{price_ttc / conversion_rate:,.2f}",
+                        f"{droits_douane_eur:,.2f}",
+                        f"{TVA_eur:,.2f}",
+                        f"{TIC_eur:,.2f}",
+                        f"{frais_annexes_eur:,.2f}",
+                        f"{total_eur:,.2f}"
+                    ]
+                }
+                costs_df = pd.DataFrame(costs_data)
+                pdf.add_table(costs_df, "Coûts et Taxes" if language == "French" else "التكاليف والضرائب")
 
-            # Ajouter un chapitre pour le bénéfice de revente
-            pdf.chapter_title("Calcul du Bénéfice de Revente" if language == "French" else "حساب الفائدة من إعادة البيع")
-            benefit_info = f"""
-            **Prix de Revente :** {resale_price_dzd:,.2f} DZD / {resale_price_eur:,.2f} EUR
-            **Bénéfice Potentiel :** {benefit_dzd:,.2f} DZD / {benefit_eur:,.2f} EUR
-            """
-            pdf.chapter_body(benefit_info)
+                # Ajouter un chapitre pour le bénéfice de revente
+                pdf.chapter_title("Calcul du Bénéfice de Revente" if language == "French" else "حساب الفائدة من إعادة البيع")
+                benefit_info = f"""
+                **Prix de Revente :** {resale_price_dzd:,.2f} DZD / {resale_price_eur:,.2f} EUR
+                **Bénéfice Potentiel :** {benefit_dzd:,.2f} DZD / {benefit_eur:,.2f} EUR
+                """
+                pdf.chapter_body(benefit_info)
 
-            # Générer le PDF en mémoire
-            pdf_output = BytesIO()
-            pdf.output(pdf_output)
-            pdf_data = pdf_output.getvalue()
+                # Générer le PDF en mémoire
+                pdf_data = pdf.output(dest='S').encode('latin1')  # Utilisation de 'S' pour obtenir le PDF en mémoire
 
-            # Bouton de téléchargement
-            st.download_button(
-                label=texts["download_button"],
-                data=pdf_data,
-                file_name=texts["report_filename"],
-                mime='application/pdf'
-            )
+                # Bouton de téléchargement
+                st.download_button(
+                    label=texts["download_button"],
+                    data=pdf_data,
+                    file_name=texts["report_filename"],
+                    mime='application/pdf'
+                )
+            except Exception as e:
+                st.error(f"Erreur lors de la génération du PDF : {e}")
     else:
         st.warning("La génération de rapports PDF nécessite l'installation du module 'fpdf'. Veuillez l'installer pour utiliser cette fonctionnalité.")
 else:
