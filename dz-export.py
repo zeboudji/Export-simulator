@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import requests
 from io import BytesIO
 from datetime import datetime
 
@@ -47,7 +48,10 @@ LANGUAGE = {
         "months": [
             "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
             "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
-        ]
+        ],
+        "select_make_label": "Sélectionnez la marque",
+        "select_model_label": "Sélectionnez le modèle",
+        "loading_models": "Chargement des modèles..."
     },
     "Arabic": {
         "title": "محاكي استيراد المركبات إلى الجزائر",
@@ -91,13 +95,47 @@ LANGUAGE = {
         "months": [
             "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
             "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"
-        ]
+        ],
+        "select_make_label": "اختر العلامة التجارية",
+        "select_model_label": "اختر الطراز",
+        "loading_models": "جارٍ تحميل الطرازات..."
     }
 }
 
 # Fonction pour obtenir les textes en fonction de la langue sélectionnée
 def get_text(lang, key):
     return LANGUAGE[lang][key]
+
+# Fonctions pour interagir avec l'API CarQuery
+@st.cache_data
+def get_makes():
+    """Récupère la liste des marques de véhicules depuis CarQuery API."""
+    url = "https://www.carqueryapi.com/api/0.3/?cmd=getMakes"
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        makes = data['Makes']
+        # Trier les marques par ordre alphabétique
+        makes_sorted = sorted(makes, key=lambda x: x['make_display'])
+        return makes_sorted
+    else:
+        st.error("Erreur lors de la récupération des marques.")
+        return []
+
+@st.cache_data
+def get_models(make_slug):
+    """Récupère la liste des modèles pour une marque donnée depuis CarQuery API."""
+    url = f"https://www.carqueryapi.com/api/0.3/?cmd=getModels&make={make_slug}"
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        models = data['Models']
+        # Trier les modèles par ordre alphabétique
+        models_sorted = sorted(models, key=lambda x: x['model_display'])
+        return models_sorted
+    else:
+        st.error("Erreur lors de la récupération des modèles.")
+        return []
 
 # Sélection de la langue
 st.sidebar.header("Language / اللغة")
@@ -137,7 +175,7 @@ conversion_rate = st.sidebar.number_input(
 # 3. Informations sur le Véhicule
 st.header(texts["vehicle_info_header"])
 
-# Remplacer l'âge par la sélection de l'année et du mois de fabrication avec noms de mois
+# Sélection de l'année et du mois de fabrication avec noms de mois
 col_year, col_month = st.columns(2)
 
 with col_year:
@@ -146,11 +184,11 @@ with col_year:
         texts["manufacture_date_label"] + " - " + ("Année" if language == "French" else "السنة"),
         min_value=1900,
         max_value=current_year,
-        value=current_year
+        value=current_year,
+        step=1
     )
 
 with col_month:
-    current_month = datetime.now().month
     months = texts["months"]
     manufacture_month_name = st.selectbox(
         texts["manufacture_date_label"] + " - " + ("Mois" if language == "French" else "الشهر"),
@@ -172,7 +210,38 @@ def calculate_age(year, month):
 
 age = calculate_age(manufacture_year, manufacture_month)
 
-# 4. Prix du Véhicule avec sélection de la devise
+# 4. Sélection de la Marque et du Modèle du Véhicule
+st.subheader(get_text(language, "vehicle_info_header"))
+
+# Récupérer les marques
+makes = get_makes()
+make_names = [make['make_display'] for make in makes]
+
+selected_make_name = st.selectbox(
+    get_text(language, "select_make_label"),
+    make_names
+)
+
+# Récupérer le slug de la marque sélectionnée pour obtenir les modèles
+selected_make = next((make for make in makes if make['make_display'] == selected_make_name), None)
+
+if selected_make:
+    make_slug = selected_make['make_slug']
+    # Récupérer les modèles basés sur la marque sélectionnée
+    with st.spinner(texts["loading_models"]):
+        models = get_models(make_slug)
+    if models:
+        model_names = [model['model_display'] for model in models]
+        selected_model_name = st.selectbox(
+            get_text(language, "select_model_label"),
+            model_names
+        )
+    else:
+        selected_model_name = None
+else:
+    selected_model_name = None
+
+# 5. Prix du Véhicule avec sélection de la devise
 st.subheader(texts["price_input_label"])
 
 col_currency, col_price = st.columns([1, 2])
@@ -199,12 +268,12 @@ with col_price:
             prix_vehicule_eur = st.number_input("سعر المركبة (باليورو)", min_value=0.0, value=1000.0, step=100.0)
             prix_vehicule_dzd = prix_vehicule_eur * conversion_rate
 
-# 5. Autres Informations sur le Véhicule
+# 6. Autres Informations sur le Véhicule
 carburant = st.selectbox(texts["fuel_label"], texts["fuel_options"])
-cylindree = st.number_input(texts["cylindree_label"], min_value=0, max_value=5000, value=1800)
+cylindree = st.number_input(texts["cylindree_label"], min_value=0, max_value=5000, value=1800, step=100)
 etat = st.selectbox(texts["etat_label"], texts["etat_options"])
 
-# 6. Calcul des Taxes et Coûts
+# 7. Calcul des Taxes et Coûts
 st.header(texts["costs_header"])
 
 # Fonction pour vérifier l'éligibilité
@@ -316,9 +385,9 @@ col1, col2 = st.columns(2)
 
 with col1:
     if language == "French":
-        st.write("**En DZD:**")
+        st.markdown("**En DZD:**")
     else:
-        st.write("**بالدينار الجزائري:**")
+        st.markdown("**بالدينار الجزائري:**")
     st.write(f"**Droits de Douane ({droits_douane_taux}%):** {droits_douane:,.2f} DZD")
     st.write(f"**TVA ({TVA_TAUX}%):** {TVA:,.2f} DZD")
     st.write(f"**TIC ({TIC_TAUX}%):** {TIC:,.2f} DZD")
@@ -327,24 +396,24 @@ with col1:
 
 with col2:
     if language == "French":
-        st.write("**En EUR:**")
+        st.markdown("**En EUR:**")
     else:
-        st.write("**باليورو:**")
+        st.markdown("**باليورو:**")
     st.write(f"**Droits de Douane ({droits_douane_taux}%):** {droits_douane_eur:,.2f} EUR")
     st.write(f"**TVA ({TVA_TAUX}%):** {TVA_eur:,.2f} EUR")
     st.write(f"**TIC ({TIC_TAUX}%):** {TIC_eur:,.2f} EUR")
     st.write(f"**Frais Annexes:** {frais_annexes_eur:,.2f} EUR")
     st.write(f"**Total Estimé:** {total_eur:,.2f} EUR")
 
-# 4. Documents Requis
+# 8. Documents Requis
 st.header(texts["document_header"])
 st.markdown(texts["document_list"])
 
-# 5. Restrictions Supplémentaires
+# 9. Restrictions Supplémentaires
 st.header(texts["restrictions_header"])
 st.markdown(texts["restrictions_list"])
 
-# 6. Téléchargement du Rapport (Optionnel)
+# 10. Téléchargement du Rapport (Optionnel)
 st.header(texts["download_header"])
 
 if st.button(texts["download_button"]):
