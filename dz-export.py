@@ -107,42 +107,42 @@ def get_text(lang, key):
     return LANGUAGE[lang][key]
 
 # Fonctions pour interagir avec l'API CarQuery
-@st.cache_data
+@st.cache_data(show_spinner=False)
 def get_makes():
     """Récupère la liste des marques de véhicules depuis CarQuery API."""
     url = "https://www.carqueryapi.com/api/0.3/?cmd=getMakes&callback="
-    response = requests.get(url)
-    if response.status_code == 200:
-        try:
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
             data = response.json()
             makes = data['Makes']
             # Trier les marques par ordre alphabétique
             makes_sorted = sorted(makes, key=lambda x: x['make_display'])
             return makes_sorted
-        except ValueError:
-            st.error("Erreur lors du décodage de la réponse JSON.")
+        else:
+            st.error("Erreur lors de la récupération des marques.")
             return []
-    else:
-        st.error("Erreur lors de la récupération des marques.")
+    except Exception as e:
+        st.error(f"Erreur lors de la récupération des marques: {e}")
         return []
 
-@st.cache_data
+@st.cache_data(show_spinner=False)
 def get_models(make_slug):
     """Récupère la liste des modèles pour une marque donnée depuis CarQuery API."""
     url = f"https://www.carqueryapi.com/api/0.3/?cmd=getModels&make={make_slug}&callback="
-    response = requests.get(url)
-    if response.status_code == 200:
-        try:
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
             data = response.json()
             models = data['Models']
             # Trier les modèles par ordre alphabétique
             models_sorted = sorted(models, key=lambda x: x['model_display'])
             return models_sorted
-        except ValueError:
-            st.error("Erreur lors du décodage de la réponse JSON.")
+        else:
+            st.error("Erreur lors de la récupération des modèles.")
             return []
-    else:
-        st.error("Erreur lors de la récupération des modèles.")
+    except Exception as e:
+        st.error(f"Erreur lors de la récupération des modèles: {e}")
         return []
 
 # Sélection de la langue
@@ -385,6 +385,11 @@ total_eur = total_dzd / conversion_rate
 
 # Conversion des frais annexes en EUR
 frais_annexes_eur = frais_annexes / conversion_rate
+
+# Conversion des autres coûts en EUR
+droits_douane_eur = droits_douane / conversion_rate
+TVA_eur = TVA / conversion_rate
+TIC_eur = TIC / conversion_rate
 
 # Affichage des résultats
 st.subheader(texts["summary_header"])
