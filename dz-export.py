@@ -77,7 +77,7 @@ LANGUAGE = {
         "tax_rate": "19%"  # Taux de TVA par défaut
     },
     "Arabic": {
-        # Traductions en arabe...
+        # Vous pouvez ajouter les traductions en arabe ici si nécessaire.
     }
 }
 
@@ -87,14 +87,60 @@ def get_text(lang, key):
 
 # Liste préenregistrée des marques et modèles courants
 MAKES_MODELS = {
-    # Comme précédemment...
+    "Renault": ["Clio", "Megane", "Captur", "Kadjar"],
+    "Peugeot": ["208", "308", "2008", "3008"],
+    "Citroën": ["C3", "C4", "C5 Aircross", "Berlingo"],
+    "Audi": ["A3", "A4", "Q3", "Q5"],
+    "Fiat": ["500", "Panda", "Tipo", "500X"],
+    "BMW": ["Serie 3", "Serie 5", "X1", "X3"],
+    "Mercedes-Benz": ["C-Class", "E-Class", "GLA", "GLC"],
+    "Volkswagen": ["Golf", "Polo", "Tiguan", "Passat"],
+    "Toyota": ["Corolla", "Yaris", "RAV4", "C-HR"],
+    "Hyundai": ["i20", "i30", "Kona", "Santa Fe"]
 }
 
 # Classe pour générer le PDF
 if FPDF_AVAILABLE:
     class PDF(FPDF):
-        # Comme précédemment...
-        pass
+        def header(self):
+            # Titre
+            self.set_font('Arial', 'B', 16)
+            self.cell(0, 10, 'Rapport d\'Importation de Véhicule', ln=True, align='C')
+            self.ln(10)
+
+        def chapter_title(self, label):
+            # Sous-titre
+            self.set_font('Arial', 'B', 12)
+            self.cell(0, 10, label, ln=True)
+            self.ln(5)
+
+        def chapter_body(self, body):
+            # Corps du texte
+            self.set_font('Arial', '', 12)
+            for line in body.split('\n'):
+                self.multi_cell(0, 10, line)
+                self.ln()
+
+        def add_table(self, df, title):
+            self.set_font('Arial', 'B', 12)
+            self.cell(0, 10, title, ln=True)
+            self.ln(2)
+            # Table
+            self.set_font('Arial', 'B', 10)
+            col_width = (self.w - 2 * self.l_margin) / len(df.columns)
+            for col in df.columns:
+                self.cell(col_width, 10, col, border=1, align='C')
+            self.ln()
+            self.set_font('Arial', '', 10)
+            for index, row in df.iterrows():
+                for item in row:
+                    if isinstance(item, float) or isinstance(item, int):
+                        item_str = f"{item:,.2f}"
+                    else:
+                        item_str = str(item)
+                    self.cell(col_width, 10, item_str, border=1)
+                self.ln()
+            self.ln(10)
 
 # Sélection de la langue
 st.sidebar.header("Language / اللغة")
@@ -148,7 +194,57 @@ tabs = st.tabs(["📄 Informations Véhicule", "💰 Coûts & Taxes", "📈 Reve
 # **Onglet 1 : Informations Véhicule**
 with tabs[0]:
     st.header(texts["vehicle_info_header"])
-    # Comme précédemment...
+    with st.container():
+        col_year, col_month = st.columns(2)
+        with col_year:
+            current_year = datetime.now().year
+            manufacture_year = st.number_input(
+                f"{texts['manufacture_date_label']} - Année",
+                min_value=1900,
+                max_value=current_year,
+                value=current_year,
+                step=1
+            )
+        with col_month:
+            months = texts["months"]
+            manufacture_month_name = st.selectbox(
+                f"{texts['manufacture_date_label']} - Mois",
+                months
+            )
+            manufacture_month = months.index(manufacture_month_name) + 1
+
+    # Calcul de l'âge du véhicule
+    def calculate_age(year, month):
+        today = datetime.now()
+        manufacture_date = datetime(year, month, 1)
+        age_in_years = today.year - manufacture_date.year
+        age_in_months = today.month - manufacture_date.month
+        if age_in_months < 0:
+            age_in_years -= 1
+            age_in_months += 12
+        return age_in_years + age_in_months / 12
+
+    age = calculate_age(manufacture_year, manufacture_month)
+
+    # Sélection de la Marque et du Modèle du Véhicule
+    with st.container():
+        col_make, col_model = st.columns(2)
+        with col_make:
+            makes = list(MAKES_MODELS.keys())
+            selected_make = st.selectbox(
+                texts["select_make_label"],
+                makes
+            )
+        with col_model:
+            models = MAKES_MODELS.get(selected_make, [])
+            if models:
+                selected_model_name = st.selectbox(
+                    texts["select_model_label"],
+                    models
+                )
+            else:
+                selected_model_name = None
+                st.warning("Aucun modèle disponible pour cette marque.")
 
     # Prix du Véhicule avec sélection de la devise et HT/TTC
     st.subheader(texts["price_input_label"])
@@ -187,8 +283,7 @@ with tabs[0]:
     )
 
     # Ajuster le prix si la TVA du pays d'origine est récupérable
-    # En supposant un taux de TVA standard du pays d'origine de 20%
-    origin_vat_rate = 20.0  # À ajuster si nécessaire
+    origin_vat_rate = 20.0  # Taux de TVA du pays d'origine (France)
     if origin_vat_included == "Oui" and price_type == "TTC (Toutes Taxes Comprises)":
         # Prix sans TVA du pays d'origine
         price_ht_origin = price / (1 + origin_vat_rate / 100)
@@ -206,16 +301,94 @@ with tabs[0]:
         pass
 
     # Autres Informations sur le Véhicule
-    # Comme précédemment...
+    with st.container():
+        col_fuel, col_cylindree, col_etat = st.columns(3)
+        with col_fuel:
+            carburant = st.selectbox(texts["fuel_label"], texts["fuel_options"])
+        with col_cylindree:
+            cylindree = st.number_input(texts["cylindree_label"], min_value=0, max_value=10000, value=1800, step=100)
+        with col_etat:
+            etat = st.selectbox(texts["etat_label"], texts["etat_options"])
 
     # Vérification de l'éligibilité du véhicule
-    # Comme précédemment...
+    st.subheader("Éligibilité du Véhicule")
+    def verifier_eligibilite(age, carburant, cylindree, etat, importer_status, lang):
+        eligibilite = True
+        raisons = []
+
+        # Vérification de l'âge du véhicule
+        if importer_status == LANGUAGE[lang]["status_options"][0]:  # Particulier Résident
+            if age > 3:
+                eligibilite = False
+                raisons.append("Le véhicule doit avoir moins de 3 ans pour les particuliers résidents.")
+        elif importer_status == LANGUAGE[lang]["status_options"][1]:  # Particulier Non-Résident
+            raisons.append("Conditions spécifiques à Particulier Non-Résident à implémenter.")
+
+        # Vérification du carburant et des normes
+        if carburant == LANGUAGE[lang]["fuel_options"][1]:  # Diesel
+            if cylindree > 2000:
+                eligibilite = False
+                raisons.append("La cylindrée maximale pour les moteurs diesel est de 2000 cm³.")
+        elif carburant == LANGUAGE[lang]["fuel_options"][0]:  # Essence
+            if cylindree > 1800:
+                eligibilite = False
+                raisons.append("La cylindrée maximale pour les moteurs à essence est de 1800 cm³.")
+
+        # Vérification de l'état de conformité
+        if etat != LANGUAGE[lang]["etat_options"][0]:  # Bon état de marche
+            eligibilite = False
+            raisons.append("Le véhicule doit être en bon état de marche, sans défaut majeur ou critique.")
+
+        return eligibilite, raisons
+
+    # Vérification de l'éligibilité
+    eligible, raisons = verifier_eligibilite(age, carburant, cylindree, etat, importer_status, language)
+
+    if eligible:
+        st.success(texts["eligibility_success"])
+    else:
+        st.error(texts["eligibility_error"])
+        for raison in raisons:
+            st.write(f"- {raison}")
+
+# **Définitions des fonctions manquantes**
+
+def calcul_droits_douane(carburant, cylindree, lang):
+    if carburant == LANGUAGE[lang]["fuel_options"][0]:  # Essence
+        if cylindree <= 1800:
+            taux = 15
+        else:
+            taux = 25
+    elif carburant == LANGUAGE[lang]["fuel_options"][1]:  # Diesel
+        if cylindree <= 2000:
+            taux = 20
+        else:
+            taux = 30
+    else:
+        taux = 0
+    return taux
+
+def calcul_TIC(carburant, cylindree, lang):
+    if carburant == LANGUAGE[lang]["fuel_options"][1]:  # Diesel
+        if 2000 < cylindree <= 2500:
+            return 2
+        elif 2500 < cylindree <= 3000:
+            return 5
+        elif cylindree > 3000:
+            return 10
+        else:
+            return 0
+    else:
+        return 0
 
 # **Onglet 2 : Coûts & Taxes**
 with tabs[1]:
     st.header(texts["costs_header"])
 
-    # Calcul des taxes ajusté pour une application correcte
+    # Estimation des frais annexes
+    frais_annexes = 50000  # Exemple fixe en DZD
+    frais_annexes_eur = frais_annexes / conversion_rate if conversion_rate != 0 else 0
+
     # Calcul des droits de douane (sur price_ht_origin)
     droits_douane_taux = calcul_droits_douane(carburant, cylindree, language)
     droits_douane = (droits_douane_taux / 100) * price_ht_origin
@@ -230,6 +403,7 @@ with tabs[1]:
     montant_avant_TVA = price_ht_origin + droits_douane + TIC + frais_annexes
 
     # Calcul de la TVA (sur montant_avant_TVA)
+    TVA_TAUX = vat_rate
     TVA = (TVA_TAUX / 100) * montant_avant_TVA
     TVA_eur = TVA / conversion_rate if conversion_rate != 0 else 0
 
@@ -415,7 +589,7 @@ with tabs[3]:
                 pdf.add_page()
 
                 # Ajouter un chapitre pour les informations générales
-                pdf.chapter_title("Informations Générales" if language == "French" else "المعلومات العامة")
+                pdf.chapter_title("Informations Générales")
                 general_info = f"""
                 **Statut de l'Importateur :** {importer_status}
 
@@ -445,10 +619,10 @@ with tabs[3]:
                     "En EUR": summary_data["En EUR"][:7]
                 }
                 costs_df = pd.DataFrame(costs_data)
-                pdf.add_table(costs_df, "Coûts et Taxes" if language == "French" else "التكاليف والضرائب")
+                pdf.add_table(costs_df, "Coûts et Taxes")
 
                 # Ajouter un chapitre pour le bénéfice de revente
-                pdf.chapter_title("Calcul du Bénéfice de Revente" if language == "French" else "حساب الفائدة من إعادة البيع")
+                pdf.chapter_title("Calcul du Bénéfice de Revente")
                 benefit_info = f"""
                 **Prix de Revente :** {resale_price_dzd:,.2f} DZD / {resale_price_eur:,.2f} EUR
                 **Bénéfice Potentiel :** {benefit_dzd:,.2f} DZD / {benefit_eur:,.2f} EUR
@@ -457,7 +631,7 @@ with tabs[3]:
                 pdf.chapter_body(benefit_info)
 
                 # Générer le PDF en mémoire
-                pdf_data = pdf.output(dest='S').encode('latin1')  # Utilisation de 'S' pour obtenir le PDF en mémoire
+                pdf_data = pdf.output(dest='S').encode('latin1')
 
                 # Bouton de téléchargement
                 st.download_button(
